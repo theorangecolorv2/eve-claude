@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(pip install:*)",
+      "Bash(python dev_tools/capture.py:*)",
+      "Bash(python:*)",
+      "Bash(start notepad)",
+      "Bash(timeout /t)",
+      "Bash(dir:*)"
+    ]
+  }
+}
