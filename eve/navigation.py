@@ -154,89 +154,82 @@ def _click_safe_anchor() -> bool:
 # ВАРП В АНОМАЛИИ
 # ============================================================================
 
-def warp_to_ukrytie(coords: Tuple[int, int], max_retries: int = 3) -> bool:
+def warp_to_ukrytie(coords: Tuple[int, int]) -> bool:
     """
     Варп в укрытие: ПКМ -> варп в 0.
 
     Args:
         coords: Координаты укрытия
-        max_retries: Максимум попыток
 
     Returns:
-        True если варп начат
+        True если варп начат, False если нужно искать аномалию заново
     """
     warp_template = os.path.join(_get_assets_path(), NavigationConfig.WARP_0_TEMPLATE)
 
-    for attempt in range(max_retries):
-        logger.info(f"Варп в укрытие (попытка {attempt + 1}/{max_retries})...")
+    logger.info("Варп в укрытие...")
 
-        # ПКМ по укрытию
-        right_click(coords[0], coords[1])
-        random_delay(0.4, 0.6)
+    # ПКМ по укрытию
+    right_click(coords[0], coords[1])
+    random_delay(0.4, 0.6)
 
-        # Ищем кнопку "варп в 0"
-        warp_btn = find_image(warp_template, confidence=0.8)
-        if warp_btn:
-            logger.info("Нажимаю 'Варп в 0'...")
-            click(warp_btn[0], warp_btn[1])
-            return True
+    # Ищем кнопку "варп в 0"
+    warp_btn = find_image(warp_template, confidence=0.8)
+    if warp_btn:
+        logger.info("Нажимаю 'Варп в 0'...")
+        click(warp_btn[0], warp_btn[1])
+        return True
 
-        # Кнопки нет - закрываем меню и ждём
-        logger.warning("Кнопка варпа не найдена, закрываю меню...")
-        _click_safe_anchor()
-        random_delay(10.0, 11.0)
-
-    logger.error("Не удалось варпнуть в укрытие")
+    # Кнопки нет - закрываем меню и возвращаем False
+    # Вызывающий код должен заново искать аномалию (она могла исчезнуть)
+    logger.warning("Кнопка варпа не найдена, закрываю меню...")
+    _click_safe_anchor()
+    random_delay(5.0, 6.0)
     return False
 
 
-def warp_to_ubejishe(coords: Tuple[int, int], max_retries: int = 3) -> bool:
+def warp_to_ubejishe(coords: Tuple[int, int]) -> bool:
     """
     Варп в убежище: ПКМ -> варп выбрать -> варп в 10 км.
 
     Args:
         coords: Координаты убежища
-        max_retries: Максимум попыток
 
     Returns:
-        True если варп начат
+        True если варп начат, False если нужно искать аномалию заново
     """
     submenu_template = os.path.join(_get_assets_path(), NavigationConfig.WARP_SUBMENU_TEMPLATE)
     warp_10km_template = os.path.join(_get_assets_path(), NavigationConfig.WARP_10KM_TEMPLATE)
 
-    for attempt in range(max_retries):
-        logger.info(f"Варп в убежище (попытка {attempt + 1}/{max_retries})...")
+    logger.info("Варп в убежище...")
 
-        # ПКМ по убежищу
-        right_click(coords[0], coords[1])
-        random_delay(0.4, 0.6)
+    # ПКМ по убежищу
+    right_click(coords[0], coords[1])
+    random_delay(0.4, 0.6)
 
-        # Ищем подменю "варп выбрать"
-        submenu = find_image(submenu_template, confidence=0.8)
-        if not submenu:
-            logger.warning("Подменю варпа не найдено, закрываю меню...")
-            _click_safe_anchor()
-            random_delay(10.0, 11.0)
-            continue
-
-        # Наводим на подменю
-        logger.debug("Навожу на подменю варпа...")
-        move_to(submenu[0], submenu[1])
-        random_delay(0.3, 0.4)
-
-        # Ищем "варп в 10 км"
-        warp_btn = find_image(warp_10km_template, confidence=0.8)
-        if warp_btn:
-            logger.info("Нажимаю 'Варп в 10 км'...")
-            click(warp_btn[0], warp_btn[1])
-            return True
-
-        # Кнопки нет - закрываем меню и ждём
-        logger.warning("Кнопка 'варп в 10 км' не найдена, закрываю меню...")
+    # Ищем подменю "варп выбрать"
+    submenu = find_image(submenu_template, confidence=0.8)
+    if not submenu:
+        logger.warning("Подменю варпа не найдено, закрываю меню...")
         _click_safe_anchor()
-        random_delay(10.0, 11.0)
+        random_delay(5.0, 6.0)
+        return False
 
-    logger.error("Не удалось варпнуть в убежище")
+    # Наводим на подменю
+    logger.debug("Навожу на подменю варпа...")
+    move_to(submenu[0], submenu[1])
+    random_delay(0.3, 0.4)
+
+    # Ищем "варп в 10 км"
+    warp_btn = find_image(warp_10km_template, confidence=0.8)
+    if warp_btn:
+        logger.info("Нажимаю 'Варп в 10 км'...")
+        click(warp_btn[0], warp_btn[1])
+        return True
+
+    # Кнопки нет - закрываем меню и возвращаем False
+    logger.warning("Кнопка 'варп в 10 км' не найдена, закрываю меню...")
+    _click_safe_anchor()
+    random_delay(5.0, 6.0)
     return False
 
 
@@ -452,21 +445,23 @@ def farm_anomaly(guns_key: str = "2") -> bool:
     if not warp_to_anomaly():
         return False
 
-    # 2. Ждём 1-2 сек после варпа
-    random_delay(1.0, 2.0)
+    # 2. Сразу переключаемся на PvP Foe
+    random_delay(1.0, 1.5)
 
-    # 3. Переключаемся на PvP Foe
     if not click_tab_pvp_foe():
         logger.error("Не удалось переключиться на PvP Foe")
         return False
 
-    # 4. Ждём появления целей
-    if not wait_for_targets():
-        logger.warning("Цели не появились - возможно аномалия пустая")
-        return False
+    # 3. Ждём появления целей (60 сек - пока летим)
+    if not wait_for_targets(timeout=60):
+        logger.warning("Цели не появились - аномалия уже зачищена")
+        return True  # Считаем как успех
 
-    # 5. Зачищаем
+    # 4. Зачищаем
     clear_current_anomaly(guns_key)
+
+    # 5. Пауза после зачистки
+    random_delay(5.0, 6.0)
 
     return True
 

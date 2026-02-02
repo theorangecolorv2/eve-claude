@@ -188,28 +188,26 @@ def farm_current_system(logger, stats: BotStats) -> int:
 
         if anomaly_type == "ukrytie":
             if not warp_to_ukrytie(coords):
-                logger.error("Не удалось варпнуть в укрытие")
-                break
+                logger.warning("Не удалось варпнуть в укрытие, ищу заново...")
+                continue  # Заново ищем аномалию (она могла исчезнуть)
         else:
             if not warp_to_ubejishe(coords):
-                logger.error("Не удалось варпнуть в убежище")
-                break
+                logger.warning("Не удалось варпнуть в убежище, ищу заново...")
+                continue  # Заново ищем аномалию (она могла исчезнуть)
 
-        # Ждём прибытия (60 сек варпа + 5 сек загрузки)
-        logger.info("Жду прибытия в аномалию...")
-        random_delay(25.0, 30.0)  # Примерное время варпа
+        # Сразу после клика на варп переключаемся на PvP Foe
+        logger.info("Переключаюсь на PvP Foe и жду появления целей...")
+        random_delay(1.0, 1.5)
 
-        # Переключаемся на PvP Foe
         if not click_tab_pvp_foe():
             logger.error("Не удалось переключиться на PvP Foe")
             break
 
-        random_delay(1.0, 2.0)
-
-        # Ждём появления целей
-        if not wait_for_targets(timeout=120):
-            logger.warning("Цели не появились - аномалия пустая?")
-            # Всё равно считаем как зачищенную
+        # Ждём появления целей (до 60 сек - пока летим в варпе)
+        # wait_for_targets уже ждёт 3-4 сек после появления целей
+        if not wait_for_targets(timeout=60):
+            logger.warning("Цели не появились за 60 сек - аномалия уже зачищена")
+            # Считаем как зачищенную (пока летели, все умерли)
             cleared += 1
             # Переключаемся обратно на Jump
             click_tab_jump()
@@ -225,6 +223,10 @@ def farm_current_system(logger, stats: BotStats) -> int:
 
         # Проверяем popup экспедиции после зачистки
         check_and_close_expedition_popup(logger)
+
+        # Ждём 5 секунд после зачистки перед поиском следующей
+        logger.info("Пауза после зачистки...")
+        random_delay(5.0, 6.0)
 
         # Переключаемся обратно на Jump чтобы искать следующую
         click_tab_jump()
