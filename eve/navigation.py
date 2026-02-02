@@ -13,6 +13,10 @@ import time
 import logging
 from typing import Optional, Tuple
 
+import numpy as np
+import cv2
+import mss
+
 from .vision import find_image, wait_image
 from .mouse import click, right_click, move_to, random_delay
 from .actions import click_on_image
@@ -346,14 +350,73 @@ def click_tab_jump() -> bool:
     return False
 
 
+def _has_yellow_pixels(x: int, y: int, region_size: int = 30, min_yellow_percent: float = 5.0) -> bool:
+    """
+    Проверить есть ли жёлтые пиксели в области вокруг точки.
+
+    Args:
+        x, y: Центр области
+        region_size: Размер области для проверки
+        min_yellow_percent: Минимальный процент жёлтых пикселей
+
+    Returns:
+        True если есть достаточно жёлтых пикселей
+    """
+    half = region_size // 2
+    region = {
+        "left": x - half,
+        "top": y - half,
+        "width": region_size,
+        "height": region_size
+    }
+
+    with mss.mss() as sct:
+        img = sct.grab(region)
+        frame = np.array(img)
+
+    # Конвертируем в HSV для проверки цвета
+    if frame.shape[2] == 4:
+        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+    else:
+        frame_bgr = frame
+
+    hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+
+    # Широкий диапазон жёлтого цвета в HSV
+    # Hue: 15-45 (жёлтый-оранжевый), Saturation: 100-255, Value: 100-255
+    lower_yellow = np.array([15, 100, 100])
+    upper_yellow = np.array([45, 255, 255])
+
+    # Маска жёлтых пикселей
+    mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+
+    # Процент жёлтых пикселей
+    yellow_pixels = np.sum(mask > 0)
+    total_pixels = mask.size
+    yellow_percent = (yellow_pixels / total_pixels) * 100
+
+    logger.debug(f"Жёлтых пикселей: {yellow_percent:.1f}% (порог: {min_yellow_percent}%)")
+
+    return yellow_percent >= min_yellow_percent
+
+
 def click_yellow_gate() -> bool:
     """Кликнуть на жёлтый гейт (следующий на маршруте)."""
     template_path = os.path.join(_get_assets_path(), NavigationConfig.GATE_YELLOW_TEMPLATE)
-    result = find_image(template_path, confidence=0.8)
+
+    # Увеличенный confidence для более строгого совпадения
+    result = find_image(template_path, confidence=0.85)
 
     if result:
+        x, y = result
+
+        # Дополнительная проверка: есть ли жёлтые пиксели в области?
+        if not _has_yellow_pixels(x, y):
+            logger.warning(f"Найден гейт @ {result}, но он НЕ жёлтый - пропускаю")
+            return False
+
         logger.info(f"Кликаю на жёлтый гейт: {result}")
-        click(result[0], result[1])
+        click(x, y)
         random_delay(0.3, 0.6)
         return True
 

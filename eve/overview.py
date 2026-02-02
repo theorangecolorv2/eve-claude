@@ -578,7 +578,7 @@ def lock_and_kill(guns_key: str = "2", check_interval: float = 1.0, kill_timeout
         return 0
 
     # Пауза после лока (цели не сразу лочатся в игре)
-    random_delay(2.0, 2.5)
+    random_delay(1.5, 2.0)
 
     # Убиваем
     return kill_locked_targets(locked, guns_key, check_interval, kill_timeout)
