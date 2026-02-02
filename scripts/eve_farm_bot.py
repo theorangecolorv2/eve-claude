@@ -255,20 +255,19 @@ def farm_current_system(logger, stats: BotStats) -> int:
                 logger.warning("Не удалось варпнуть в убежище, ищу заново...")
                 continue  # Заново ищем аномалию (она могла исчезнуть)
 
-        # После клика на варп в ПЕРВУЮ аномалию - активируем модули поддержки
-        # Делаем это пока летим, чтобы к прибытию всё было готово
-        if not support_modules_activated:
-            random_delay(2.0, 3.0)  # Небольшая пауза после старта варпа
-            activate_support_modules(logger)
-            support_modules_activated = True
-
         # Переключаемся на PvP Foe
-        logger.info("Переключаюсь на PvP Foe и жду появления целей...")
+        logger.info("Переключаюсь на PvP Foe...")
         random_delay(1.0, 1.5)
 
         if not click_tab_pvp_foe():
             logger.error("Не удалось переключиться на PvP Foe")
             break
+
+        # После клика на PvP Foe в ПЕРВУЮ аномалию - активируем модули поддержки
+        if not support_modules_activated:
+            random_delay(1.0, 1.5)  # Пауза после клика на вкладку
+            activate_support_modules(logger)
+            support_modules_activated = True
 
         # Ждём появления целей (до 60 сек - пока летим в варпе)
         # wait_for_targets уже ждёт 3-4 сек после появления целей
