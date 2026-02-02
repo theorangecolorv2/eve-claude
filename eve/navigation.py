@@ -18,11 +18,35 @@ import cv2
 import mss
 
 from .vision import find_image, wait_image
-from .mouse import click, right_click, move_to, random_delay
+from .mouse import click, right_click, move_to, random_delay, get_position
 from .actions import click_on_image
 from .overview import is_overview_empty, count_targets, clear_anomaly
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# ANTI-SLEEP (предотвращение засыпания монитора)
+# ============================================================================
+
+def _mouse_jiggle():
+    """
+    Немного подвигать мышкой чтобы монитор не засыпал.
+    Двигает на +-1-2 пикселя от текущей позиции.
+    """
+    import random
+    x, y = get_position()
+
+    # Случайное смещение на 1-2 пикселя
+    dx = random.randint(-2, 2)
+    dy = random.randint(-2, 2)
+
+    # Двигаем туда и обратно
+    move_to(x + dx, y + dy, duration=0.1, humanize=False)
+    time.sleep(0.05)
+    move_to(x, y, duration=0.1, humanize=False)
+
+    logger.debug("Mouse jiggle (anti-sleep)")
 
 
 # ============================================================================
@@ -290,7 +314,14 @@ def wait_for_targets(timeout: float = None) -> bool:
     logger.info(f"Жду появления целей до {timeout} сек...")
 
     start_time = time.time()
+    last_jiggle = start_time
+
     while time.time() - start_time < timeout:
+        # Anti-sleep: jiggle мышки каждые 15 сек
+        if time.time() - last_jiggle > 15:
+            _mouse_jiggle()
+            last_jiggle = time.time()
+
         if not is_overview_empty():
             targets = count_targets()
             if targets > 0:
@@ -446,14 +477,30 @@ def wait_jump_complete() -> bool:
         True если прыжок завершён
     """
     logger.info(f"Ожидаю {NavigationConfig.JUMP_INITIAL_WAIT} сек (время прыжка)...")
-    time.sleep(NavigationConfig.JUMP_INITIAL_WAIT)
+
+    # Начальное ожидание с anti-sleep jiggle
+    initial_wait = NavigationConfig.JUMP_INITIAL_WAIT
+    waited = 0
+    while waited < initial_wait:
+        time.sleep(1)
+        waited += 1
+        # Jiggle каждые 15 сек
+        if waited % 15 == 0:
+            _mouse_jiggle()
 
     logger.info(f"Жду индикатор '0.0 М/С' до {NavigationConfig.JUMP_COMPLETE_TIMEOUT} сек...")
 
     template_path = os.path.join(_get_assets_path(), NavigationConfig.SPEED_ZERO_TEMPLATE)
 
     start_time = time.time()
+    last_jiggle = start_time
+
     while time.time() - start_time < NavigationConfig.JUMP_COMPLETE_TIMEOUT:
+        # Anti-sleep: jiggle каждые 15 сек
+        if time.time() - last_jiggle > 15:
+            _mouse_jiggle()
+            last_jiggle = time.time()
+
         result = find_image(template_path, confidence=0.85)
         if result:
             logger.info("Прыжок завершён - корабль остановился (0.0 М/С)")
