@@ -43,7 +43,6 @@ from eve import (
     random_delay,
     # Keyboard
     press_key,
-    hotkey,
 )
 
 # ============================================================================
@@ -108,19 +107,29 @@ class BotStats:
         self.anomalies_cleared = 0
         self.targets_killed = 0
         self.jumps_made = 0
+        self.expeditions_found = 0
 
     def log_stats(self, logger):
         """Вывести статистику в лог."""
         elapsed = time.time() - self.start_time
         hours = int(elapsed // 3600)
         minutes = int((elapsed % 3600) // 60)
+        seconds = int(elapsed % 60)
+
+        # Рассчитываем метрики
+        anomalies_per_hour = (self.anomalies_cleared / elapsed * 3600) if elapsed > 0 else 0
+        expedition_rate = (self.expeditions_found / self.anomalies_cleared * 100) if self.anomalies_cleared > 0 else 0
 
         logger.info("=" * 50)
         logger.info("СТАТИСТИКА БОТА")
-        logger.info(f"  Время работы: {hours}ч {minutes}м")
+        logger.info(f"  Время работы: {hours}ч {minutes}м {seconds}с")
         logger.info(f"  Систем посещено: {self.systems_visited}")
         logger.info(f"  Аномалий зачищено: {self.anomalies_cleared}")
+        logger.info(f"  Экспедиций найдено: {self.expeditions_found}")
         logger.info(f"  Прыжков сделано: {self.jumps_made}")
+        logger.info(f"  --- Метрики ---")
+        logger.info(f"  Аномалий/час: {anomalies_per_hour:.1f}")
+        logger.info(f"  Шанс экспедиции: {expedition_rate:.1f}%")
         logger.info("=" * 50)
 
 
@@ -128,51 +137,69 @@ class BotStats:
 # МОДУЛИ ПОДДЕРЖКИ
 # ============================================================================
 
-def activate_support_modules_and_reload(logger) -> None:
+def activate_support_modules(logger) -> None:
     """
-    Активировать модули поддержки (4, 5, 6) и перезарядить пушки (Ctrl+R).
+    Активировать модули поддержки (4, 5, 6).
 
     Вызывается сразу после клика на варп в первую аномалию (пока летим).
     """
-    logger.info("Активирую модули поддержки и перезаряжаю пушки...")
+    logger.info("Активирую модули поддержки...")
 
-    # Сначала модули поддержки
     for key in BotConfig.SUPPORT_MODULES_KEYS:
         press_key(key)
         logger.debug(f"  Нажал '{key}'")
-        random_delay(0.3, 0.5)
+        random_delay(0.15, 0.25)  # ~0.2 сек между нажатиями
 
-    # Затем перезарядка пушек (Ctrl+R)
-    random_delay(0.3, 0.5)
-    hotkey("ctrl", "r")
-    logger.debug("  Нажал 'Ctrl+R' (перезарядка)")
-
-    logger.info("Модули и пушки готовы")
+    logger.info("Модули поддержки активированы")
 
 
 # ============================================================================
 # ОБРАБОТКА ЭКСПЕДИШЕНОВ
 # ============================================================================
 
-def check_and_close_expedition_popup(logger) -> bool:
+def check_and_close_expedition_popup(logger, stats: BotStats = None) -> bool:
     """
     Проверить и закрыть popup экспедиции.
+
+    Args:
+        logger: Логгер
+        stats: Статистика бота (для подсчёта экспедиций)
 
     Returns:
         True если popup был найден и закрыт
     """
     assets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
-    template = os.path.join(assets_path, "eve_expedition_popup.png")
+    popup_template = os.path.join(assets_path, "eve_expedition_popup.png")
+    close_template = os.path.join(assets_path, "eve_expedition_close.png")
 
-    result = find_image(template, confidence=0.8)
-    if result:
-        logger.info("Обнаружен popup экспедиции, закрываю...")
-        # Кликаем на popup чтобы закрыть (или можно искать кнопку закрытия)
-        click(result[0], result[1])
+    # Сначала проверяем есть ли popup
+    popup_result = find_image(popup_template, confidence=0.8)
+    if not popup_result:
+        return False
+
+    logger.info("=" * 30)
+    logger.info("🎉 ЭКСПЕДИЦИЯ НАЙДЕНА!")
+    logger.info("=" * 30)
+
+    # Обновляем статистику
+    if stats:
+        stats.expeditions_found += 1
+        logger.info(f"Всего экспедиций: {stats.expeditions_found}")
+
+    # Ищем кнопку "Закрыть"
+    random_delay(0.3, 0.5)
+    close_result = find_image(close_template, confidence=0.8)
+
+    if close_result:
+        logger.info("Закрываю popup экспедиции...")
+        click(close_result[0], close_result[1])
         random_delay(0.5, 1.0)
         return True
-
-    return False
+    else:
+        logger.warning("Кнопка 'Закрыть' не найдена, пробую кликнуть на popup...")
+        click(popup_result[0], popup_result[1])
+        random_delay(0.5, 1.0)
+        return True
 
 
 # ============================================================================
@@ -191,7 +218,7 @@ def farm_current_system(logger, stats: BotStats) -> int:
     logger.info("=" * 50)
 
     # Проверяем popup экспедиции
-    check_and_close_expedition_popup(logger)
+    check_and_close_expedition_popup(logger, stats)
 
     # Сначала переключаемся на вкладку Jump чтобы увидеть аномалии
     click_tab_jump()
@@ -228,11 +255,11 @@ def farm_current_system(logger, stats: BotStats) -> int:
                 logger.warning("Не удалось варпнуть в убежище, ищу заново...")
                 continue  # Заново ищем аномалию (она могла исчезнуть)
 
-        # После клика на варп в ПЕРВУЮ аномалию - активируем модули и перезаряжаем пушки
+        # После клика на варп в ПЕРВУЮ аномалию - активируем модули поддержки
         # Делаем это пока летим, чтобы к прибытию всё было готово
         if not support_modules_activated:
             random_delay(2.0, 3.0)  # Небольшая пауза после старта варпа
-            activate_support_modules_and_reload(logger)
+            activate_support_modules(logger)
             support_modules_activated = True
 
         # Переключаемся на PvP Foe
@@ -262,7 +289,7 @@ def farm_current_system(logger, stats: BotStats) -> int:
         stats.anomalies_cleared += 1
 
         # Проверяем popup экспедиции после зачистки
-        check_and_close_expedition_popup(logger)
+        check_and_close_expedition_popup(logger, stats)
 
         # Ждём 5 секунд после зачистки перед поиском следующей
         logger.info("Пауза после зачистки...")
