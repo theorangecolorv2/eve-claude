@@ -45,6 +45,10 @@ temp/*
 inbox/*
 !inbox/.gitkeep
 
+# Telegram bot data (users and stats)
+data/*
+!data/.gitkeep
+
 # Sensitive data
 *.env
 .env

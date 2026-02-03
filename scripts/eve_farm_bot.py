@@ -16,6 +16,7 @@ import sys
 import os
 import time
 import logging
+import threading
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -44,6 +45,9 @@ from eve import (
     # Keyboard
     press_key,
 )
+
+# Telegram уведомления
+from eve.telegram_notifier import notify_expedition, notify_error
 
 # ============================================================================
 # КОНФИГУРАЦИЯ БОТА
@@ -109,6 +113,41 @@ class BotStats:
         self.jumps_made = 0
         self.expeditions_found = 0
 
+    def to_dict(self) -> dict:
+        """
+        Преобразовать статистику в словарь.
+
+        Returns:
+            Словарь со статистикой
+        """
+        elapsed = time.time() - self.start_time
+        anomalies_per_hour = (self.anomalies_cleared / elapsed * 3600) if elapsed > 0 else 0
+        expedition_rate = (self.expeditions_found / self.anomalies_cleared * 100) if self.anomalies_cleared > 0 else 0
+
+        return {
+            'elapsed': elapsed,
+            'systems_visited': self.systems_visited,
+            'anomalies_cleared': self.anomalies_cleared,
+            'expeditions_found': self.expeditions_found,
+            'jumps_made': self.jumps_made,
+            'anomalies_per_hour': anomalies_per_hour,
+            'expedition_rate': expedition_rate,
+        }
+
+    def save_to_file(self):
+        """Сохранить статистику в файл для Telegram бота."""
+        import json
+        stats_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "bot_stats.json")
+
+        # Создаем папку data если не существует
+        os.makedirs(os.path.dirname(stats_file), exist_ok=True)
+
+        try:
+            with open(stats_file, 'w', encoding='utf-8') as f:
+                json.dump(self.to_dict(), f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logging.getLogger(__name__).error(f"Ошибка сохранения статистики: {e}")
+
     def log_stats(self, logger):
         """Вывести статистику в лог."""
         elapsed = time.time() - self.start_time
@@ -131,6 +170,9 @@ class BotStats:
         logger.info(f"  Аномалий/час: {anomalies_per_hour:.1f}")
         logger.info(f"  Шанс экспедиции: {expedition_rate:.1f}%")
         logger.info("=" * 50)
+
+        # Сохраняем в файл
+        self.save_to_file()
 
 
 # ============================================================================
@@ -186,6 +228,12 @@ def check_and_close_expedition_popup(logger, stats: BotStats = None) -> bool:
         stats.expeditions_found += 1
         logger.info(f"Всего экспедиций: {stats.expeditions_found}")
 
+        # Уведомление в Telegram
+        try:
+            notify_expedition(stats.expeditions_found)
+        except Exception as e:
+            logger.error(f"Ошибка отправки уведомления в Telegram: {e}")
+
     # Ищем кнопку "Закрыть"
     random_delay(0.3, 0.5)
     close_result = find_image(close_template, confidence=0.8)
@@ -200,6 +248,103 @@ def check_and_close_expedition_popup(logger, stats: BotStats = None) -> bool:
         click(popup_result[0], popup_result[1])
         random_delay(0.5, 1.0)
         return True
+
+
+# ============================================================================
+# ЗАПУСК TELEGRAM БОТА
+# ============================================================================
+
+def start_telegram_bot_background():
+    """
+    Запустить Telegram бота в фоновом потоке.
+
+    Бот будет обрабатывать команды /start, /stats и подписывать пользователей.
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        from telegram import Update
+        from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+        from eve.telegram_notifier import BOT_TOKEN, add_user, load_users, format_stats
+
+        logger.info("Запускаю Telegram бота в фоне...")
+
+        # Обработчики команд (копия из telegram_bot.py)
+        async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            chat_id = update.effective_chat.id
+            username = update.effective_user.username or "Unknown"
+            add_user(chat_id)
+
+            # Загружаем статистику
+            stats_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "bot_stats.json")
+            stats = {}
+            if os.path.exists(stats_file):
+                import json
+                with open(stats_file, 'r', encoding='utf-8') as f:
+                    stats = json.load(f)
+
+            if not stats:
+                text = (
+                    f"👋 <b>Привет, {username}!</b>\n\n"
+                    f"📢 Ты подписан на уведомления:\n"
+                    f"  • 🎉 Экспедиции\n"
+                    f"  • ❌ Ошибки бота\n\n"
+                    f"⏳ Фарм бот запускается..."
+                )
+            else:
+                stats_text = format_stats(stats)
+                text = (
+                    f"👋 <b>Привет, {username}!</b>\n\n"
+                    f"📢 Ты подписан на уведомления:\n"
+                    f"  • 🎉 Экспедиции\n"
+                    f"  • ❌ Ошибки бота\n\n"
+                    f"{stats_text}"
+                )
+
+            await update.message.reply_text(text, parse_mode='HTML')
+
+        async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            stats_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "bot_stats.json")
+            stats = {}
+            if os.path.exists(stats_file):
+                import json
+                with open(stats_file, 'r', encoding='utf-8') as f:
+                    stats = json.load(f)
+
+            if not stats:
+                text = "⚠️ Фарм бот ещё не начал работу."
+            else:
+                text = format_stats(stats)
+
+            await update.message.reply_text(text, parse_mode='HTML')
+
+        async def users_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            users = load_users()
+            text = f"👥 Подписчиков: {len(users)}"
+            await update.message.reply_text(text, parse_mode='HTML')
+
+        async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            chat_id = update.effective_chat.id
+            add_user(chat_id)
+            text = "✅ Ты подписан на уведомления!\n\nИспользуй /start для просмотра статистики."
+            await update.message.reply_text(text, parse_mode='HTML')
+
+        # Создаем приложение
+        app = Application.builder().token(BOT_TOKEN).build()
+
+        # Регистрируем обработчики
+        app.add_handler(CommandHandler("start", start_command))
+        app.add_handler(CommandHandler("stats", stats_command))
+        app.add_handler(CommandHandler("users", users_command))
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+
+        # Запускаем бота в текущем потоке
+        logger.info("Telegram бот запущен ✅")
+        app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+
+    except Exception as e:
+        logger.error(f"Ошибка запуска Telegram бота: {e}")
+        logger.info("Фарм бот продолжит работу БЕЗ Telegram уведомлений")
 
 
 # ============================================================================
@@ -312,6 +457,16 @@ def run_bot():
     logger.info(f"Макс. систем: {BotConfig.MAX_SYSTEMS or 'бесконечно'}")
     logger.info("=" * 50)
 
+    # Запускаем Telegram бота в фоновом потоке
+    telegram_thread = threading.Thread(
+        target=start_telegram_bot_background,
+        daemon=True,
+        name="TelegramBot"
+    )
+    telegram_thread.start()
+    logger.info("Telegram бот запускается в фоне...")
+    time.sleep(2)  # Даём время на запуск
+
     # Активация окна EVE
     logger.info("Активирую окно EVE...")
     if not activate_window("EVE"):
@@ -337,6 +492,9 @@ def run_bot():
             # Статистика
             if stats.systems_visited % BotConfig.STATS_LOG_INTERVAL == 0:
                 stats.log_stats(logger)
+            else:
+                # Просто сохраняем в файл (без вывода в лог)
+                stats.save_to_file()
 
             # Прыжок в следующую систему
             logger.info("Прыгаю в следующую систему...")
@@ -358,6 +516,13 @@ def run_bot():
 
     except Exception as e:
         logger.exception(f"Критическая ошибка: {e}")
+
+        # Уведомление в Telegram об ошибке
+        try:
+            error_msg = f"{type(e).__name__}: {str(e)}"
+            notify_error(error_msg, send_screenshot=True)
+        except Exception as telegram_err:
+            logger.error(f"Ошибка отправки уведомления об ошибке: {telegram_err}")
 
     finally:
         # Итоговая статистика
