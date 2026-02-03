@@ -382,7 +382,7 @@ def click_tab_jump() -> bool:
     return False
 
 
-def _has_yellow_pixels(x: int, y: int, region_size: int = 30, min_yellow_percent: float = 2.0) -> bool:
+def _has_yellow_pixels(x: int, y: int, region_size: int = 50, min_yellow_percent: float = 1.0) -> bool:
     """
     Проверить есть ли жёлтые пиксели в области вокруг точки.
 
@@ -427,7 +427,8 @@ def _has_yellow_pixels(x: int, y: int, region_size: int = 30, min_yellow_percent
     total_pixels = mask.size
     yellow_percent = (yellow_pixels / total_pixels) * 100
 
-    logger.debug(f"Жёлтых пикселей: {yellow_percent:.1f}% (порог: {min_yellow_percent}%)")
+    # Выводим INFO чтобы видеть в логах
+    logger.info(f"Проверка желтизны @ ({x}, {y}): {yellow_percent:.2f}% (порог: {min_yellow_percent}%)")
 
     return yellow_percent >= min_yellow_percent
 
