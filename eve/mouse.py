@@ -219,7 +219,8 @@ def click(
     x: int,
     y: int,
     button: str = "left",
-    humanize: bool = True
+    humanize: bool = True,
+    duration: Optional[float] = None
 ) -> None:
     """
     Клик по координатам.
@@ -228,13 +229,14 @@ def click(
         x, y: Координаты
         button: "left", "right", или "middle"
         humanize: Использовать хуманизацию
+        duration: Время движения мыши (None = автоматически)
     """
     if humanize:
         # Смещение от точной точки
         x, y = _apply_click_offset(x, y)
 
         # Плавное движение к цели
-        move_to(x, y, humanize=True)
+        move_to(x, y, humanize=True, duration=duration)
 
         # Пауза перед кликом
         _human_click_delay()
@@ -286,15 +288,16 @@ def double_click(x: int, y: int, humanize: bool = True) -> None:
         pyautogui.doubleClick(x, y)
 
 
-def right_click(x: int, y: int, humanize: bool = True) -> None:
+def right_click(x: int, y: int, humanize: bool = True, duration: Optional[float] = None) -> None:
     """
     Правый клик по координатам.
 
     Args:
         x, y: Координаты
         humanize: Использовать хуманизацию
+        duration: Время движения мыши (None = автоматически)
     """
-    click(x, y, button="right", humanize=humanize)
+    click(x, y, button="right", humanize=humanize, duration=duration)
 
 
 def middle_click(x: int, y: int, humanize: bool = True) -> None:

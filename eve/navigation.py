@@ -98,7 +98,7 @@ def _get_assets_path() -> str:
 def has_anomaly_ubejishe() -> bool:
     """Проверить есть ли аномалия 'Убежище'."""
     template_path = os.path.join(_get_assets_path(), NavigationConfig.ANOMALY_UBEJISHE_TEMPLATE)
-    result = find_image(template_path, confidence=0.8)
+    result = find_image(template_path, confidence=0.92)
     if result:
         logger.info("Найдена аномалия: Убежище")
         return True
@@ -108,7 +108,7 @@ def has_anomaly_ubejishe() -> bool:
 def has_anomaly_ukrytie() -> bool:
     """Проверить есть ли аномалия 'Укрытие'."""
     template_path = os.path.join(_get_assets_path(), NavigationConfig.ANOMALY_UKRYTIE_TEMPLATE)
-    result = find_image(template_path, confidence=0.8)
+    result = find_image(template_path, confidence=0.92)
     if result:
         logger.info("Найдена аномалия: Укрытие")
         return True
@@ -128,13 +128,13 @@ def has_anomalies() -> bool:
 def find_anomaly_ukrytie() -> Optional[Tuple[int, int]]:
     """Найти координаты укрытия."""
     template_path = os.path.join(_get_assets_path(), NavigationConfig.ANOMALY_UKRYTIE_TEMPLATE)
-    return find_image(template_path, confidence=0.8)
+    return find_image(template_path, confidence=0.92)
 
 
 def find_anomaly_ubejishe() -> Optional[Tuple[int, int]]:
     """Найти координаты убежища."""
     template_path = os.path.join(_get_assets_path(), NavigationConfig.ANOMALY_UBEJISHE_TEMPLATE)
-    return find_image(template_path, confidence=0.8)
+    return find_image(template_path, confidence=0.92)
 
 
 def find_anomaly() -> Optional[Tuple[str, Tuple[int, int]]]:
@@ -196,8 +196,8 @@ def warp_to_ukrytie(coords: Tuple[int, int]) -> bool:
 
     logger.info("Варп в укрытие...")
 
-    # ПКМ по укрытию
-    right_click(coords[0], coords[1])
+    # ПКМ по укрытию (быстрый клик для аномалий)
+    right_click(coords[0], coords[1], duration=0.15)
     random_delay(0.4, 0.6)
 
     # Ищем кнопку "варп в 0"
@@ -230,8 +230,8 @@ def warp_to_ubejishe(coords: Tuple[int, int]) -> bool:
 
     logger.info("Варп в убежище...")
 
-    # ПКМ по убежищу
-    right_click(coords[0], coords[1])
+    # ПКМ по убежищу (быстрый клик для аномалий)
+    right_click(coords[0], coords[1], duration=0.15)
     random_delay(0.4, 0.6)
 
     # Ищем подменю "варп выбрать"
