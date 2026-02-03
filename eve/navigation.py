@@ -382,7 +382,7 @@ def click_tab_jump() -> bool:
     return False
 
 
-def _has_yellow_pixels(x: int, y: int, region_size: int = 50, min_yellow_percent: float = 1.0) -> bool:
+def _has_yellow_pixels(x: int, y: int, region_size: int = 40, min_yellow_percent: float = 3.0) -> bool:
     """
     Проверить есть ли жёлтые пиксели в области вокруг точки.
 
