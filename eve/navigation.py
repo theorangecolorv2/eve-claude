@@ -382,14 +382,14 @@ def click_tab_jump() -> bool:
     return False
 
 
-def _has_yellow_pixels(x: int, y: int, region_size: int = 30, min_yellow_percent: float = 5.0) -> bool:
+def _has_yellow_pixels(x: int, y: int, region_size: int = 30, min_yellow_percent: float = 2.0) -> bool:
     """
     Проверить есть ли жёлтые пиксели в области вокруг точки.
 
     Args:
         x, y: Центр области
         region_size: Размер области для проверки
-        min_yellow_percent: Минимальный процент жёлтых пикселей
+        min_yellow_percent: Минимальный процент жёлтых пикселей (по умолчанию 2%)
 
     Returns:
         True если есть достаточно жёлтых пикселей
@@ -414,9 +414,9 @@ def _has_yellow_pixels(x: int, y: int, region_size: int = 30, min_yellow_percent
 
     hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
 
-    # Широкий диапазон жёлтого цвета в HSV
-    # Hue: 15-45 (жёлтый-оранжевый), Saturation: 100-255, Value: 100-255
-    lower_yellow = np.array([15, 100, 100])
+    # Расширенный диапазон жёлтого цвета в HSV
+    # Hue: 15-45 (жёлтый-оранжевый), Saturation: 50-255 (менее насыщенный тоже), Value: 100-255
+    lower_yellow = np.array([15, 50, 100])
     upper_yellow = np.array([45, 255, 255])
 
     # Маска жёлтых пикселей
