@@ -208,6 +208,8 @@ def check_and_close_expedition_popup(logger, stats: BotStats = None) -> bool:
     """
     Проверить и закрыть popup экспедиции.
 
+    Новая логика: Ищем текст "Guristas Scout Outpost" + кнопку Close/Close2
+
     Args:
         logger: Логгер
         stats: Статистика бота (для подсчёта экспедиций)
@@ -216,14 +218,29 @@ def check_and_close_expedition_popup(logger, stats: BotStats = None) -> bool:
         True если popup был найден и закрыт
     """
     assets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
-    popup_template = os.path.join(assets_path, "eve_expedition_popup.png")
-    close_template = os.path.join(assets_path, "eve_expedition_close.png")
 
-    # Сначала проверяем есть ли popup
-    popup_result = find_image(popup_template, confidence=0.8)
-    if not popup_result:
+    # Шаблоны для поиска
+    text_template = os.path.join(assets_path, "eve_expedition_text.png")  # "Guristas Scout Outpost"
+    close_template = os.path.join(assets_path, "eve_expedition_close.png")  # Старая кнопка
+    close2_template = os.path.join(assets_path, "eve_expedition_close2.png")  # Новая кнопка
+
+    # 1. Ищем текст экспедиции
+    text_result = find_image(text_template, confidence=0.85)
+    if not text_result:
+        return False  # Нет текста экспедиции
+
+    # 2. Ищем кнопку Close (сначала старую, потом новую)
+    close_result = find_image(close_template, confidence=0.8)
+
+    if not close_result:
+        # Попробуем close2
+        close_result = find_image(close2_template, confidence=0.8)
+
+    if not close_result:
+        logger.warning("Найден текст экспедиции, но кнопка Close не найдена")
         return False
 
+    # 3. ОБА найдены - это экспедиция!
     logger.info("=" * 30)
     logger.info("🎉 ЭКСПЕДИЦИЯ НАЙДЕНА!")
     logger.info("=" * 30)
@@ -239,20 +256,13 @@ def check_and_close_expedition_popup(logger, stats: BotStats = None) -> bool:
         except Exception as e:
             logger.error(f"Ошибка отправки уведомления в Telegram: {e}")
 
-    # Ищем кнопку "Закрыть"
+    # Жмем Close
     random_delay(0.3, 0.5)
-    close_result = find_image(close_template, confidence=0.8)
+    logger.info("Закрываю popup экспедиции...")
+    click(close_result[0], close_result[1])
+    random_delay(0.5, 1.0)
 
-    if close_result:
-        logger.info("Закрываю popup экспедиции...")
-        click(close_result[0], close_result[1])
-        random_delay(0.5, 1.0)
-        return True
-    else:
-        logger.warning("Кнопка 'Закрыть' не найдена, пробую кликнуть на popup...")
-        click(popup_result[0], popup_result[1])
-        random_delay(0.5, 1.0)
-        return True
+    return True
 
 
 # ============================================================================
@@ -265,7 +275,6 @@ def start_telegram_bot_background():
 
     Бот будет обрабатывать команды /start, /stats и подписывать пользователей.
     """
-    import asyncio
     logger = logging.getLogger(__name__)
 
     try:
@@ -281,10 +290,6 @@ def start_telegram_bot_background():
             return
 
         logger.info("Запускаю Telegram бота в фоне...")
-
-        # Создаем новый event loop для этого потока
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
 
         # Обработчики команд (копия из telegram_bot.py)
         async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -355,20 +360,13 @@ def start_telegram_bot_background():
         app.add_handler(CommandHandler("users", users_command))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
-        # Запускаем бота в текущем event loop
+        # Запускаем бота (run_polling создаст свой event loop)
         logger.info("Telegram бот запущен ✅")
-        loop.run_until_complete(
-            app.initialize()
+        app.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+            close_loop=False  # Не закрывать loop при остановке
         )
-        loop.run_until_complete(
-            app.start()
-        )
-        loop.run_until_complete(
-            app.updater.start_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
-        )
-
-        # Держим loop живым
-        loop.run_forever()
 
     except ImportError as e:
         logger.error(f"Библиотека не найдена: {e}")
