@@ -93,6 +93,11 @@ def setup_logging():
         ]
     )
 
+    # Приглушить httpx/telegram логи (только WARNING и выше)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("telegram").setLevel(logging.WARNING)
+
     logger = logging.getLogger(__name__)
     logger.info(f"Лог файл: {log_file}")
     return logger
