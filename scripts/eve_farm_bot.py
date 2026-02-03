@@ -275,6 +275,7 @@ def start_telegram_bot_background():
 
     Бот будет обрабатывать команды /start, /stats и подписывать пользователей.
     """
+    import asyncio
     logger = logging.getLogger(__name__)
 
     try:
@@ -290,6 +291,10 @@ def start_telegram_bot_background():
             return
 
         logger.info("Запускаю Telegram бота в фоне...")
+
+        # ВАЖНО: Создаем event loop для этого потока
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
         # Обработчики команд (копия из telegram_bot.py)
         async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
