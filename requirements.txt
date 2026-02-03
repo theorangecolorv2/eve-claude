@@ -11,3 +11,4 @@ numpy>=1.24.0          # Required by OpenCV
 
 # Telegram notifications
 python-telegram-bot>=20.0  # Telegram bot API
+python-dotenv>=1.0.0       # Load environment variables from .env

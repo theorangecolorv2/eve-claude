@@ -19,8 +19,18 @@ from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
-# Токен бота
-BOT_TOKEN = "8348805684:AAH8P4STd4-TP6nzGa-C5X7Z6_hjlFk9OAk"
+# Загрузка токена из .env файла
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
+    if not BOT_TOKEN:
+        logger.warning("TELEGRAM_BOT_TOKEN не найден в .env файле")
+        BOT_TOKEN = None
+except ImportError:
+    logger.warning("python-dotenv не установлен, используйте: pip install python-dotenv")
+    BOT_TOKEN = None
 
 # Файл для хранения chat_id пользователей
 USERS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "telegram_users.json")
@@ -135,6 +145,10 @@ async def _send_message_async(chat_id: int, text: str) -> bool:
     Returns:
         True если успешно
     """
+    if not BOT_TOKEN:
+        logger.error("BOT_TOKEN не установлен")
+        return False
+
     try:
         from telegram import Bot
 
@@ -158,6 +172,10 @@ async def _send_photo_async(chat_id: int, photo: BytesIO, caption: str = None) -
     Returns:
         True если успешно
     """
+    if not BOT_TOKEN:
+        logger.error("BOT_TOKEN не установлен")
+        return False
+
     try:
         from telegram import Bot
 

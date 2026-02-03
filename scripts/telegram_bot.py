@@ -29,6 +29,22 @@ from eve.telegram_notifier import (
     format_stats,
 )
 
+# Проверка токена
+if not BOT_TOKEN:
+    print("=" * 50)
+    print("ОШИБКА: TELEGRAM_BOT_TOKEN не найден!")
+    print("=" * 50)
+    print()
+    print("Создай файл .env в корне проекта:")
+    print("  cp .env.example .env")
+    print()
+    print("И добавь токен бота:")
+    print("  TELEGRAM_BOT_TOKEN=your_token_here")
+    print()
+    print("=" * 50)
+    import sys
+    sys.exit(1)
+
 # ============================================================================
 # ЛОГИРОВАНИЕ
 # ============================================================================

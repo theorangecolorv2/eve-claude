@@ -260,6 +260,7 @@ def start_telegram_bot_background():
 
     Бот будет обрабатывать команды /start, /stats и подписывать пользователей.
     """
+    import asyncio
     logger = logging.getLogger(__name__)
 
     try:
@@ -267,7 +268,18 @@ def start_telegram_bot_background():
         from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
         from eve.telegram_notifier import BOT_TOKEN, add_user, load_users, format_stats
 
+        # Проверка токена
+        if not BOT_TOKEN:
+            logger.error("TELEGRAM_BOT_TOKEN не найден в .env файле!")
+            logger.info("Создай файл .env и добавь: TELEGRAM_BOT_TOKEN=your_token")
+            logger.info("Фарм бот продолжит работу БЕЗ Telegram уведомлений")
+            return
+
         logger.info("Запускаю Telegram бота в фоне...")
+
+        # Создаем новый event loop для этого потока
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
         # Обработчики команд (копия из telegram_bot.py)
         async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -338,10 +350,25 @@ def start_telegram_bot_background():
         app.add_handler(CommandHandler("users", users_command))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
-        # Запускаем бота в текущем потоке
+        # Запускаем бота в текущем event loop
         logger.info("Telegram бот запущен ✅")
-        app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+        loop.run_until_complete(
+            app.initialize()
+        )
+        loop.run_until_complete(
+            app.start()
+        )
+        loop.run_until_complete(
+            app.updater.start_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+        )
 
+        # Держим loop живым
+        loop.run_forever()
+
+    except ImportError as e:
+        logger.error(f"Библиотека не найдена: {e}")
+        logger.info("Установи: pip install python-telegram-bot python-dotenv")
+        logger.info("Фарм бот продолжит работу БЕЗ Telegram уведомлений")
     except Exception as e:
         logger.error(f"Ошибка запуска Telegram бота: {e}")
         logger.info("Фарм бот продолжит работу БЕЗ Telegram уведомлений")

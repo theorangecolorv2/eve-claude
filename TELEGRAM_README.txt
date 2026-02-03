@@ -5,15 +5,19 @@
 ✅ ТЕПЕРЬ ЗАПУСКАЕТСЯ ОДНОЙ КОМАНДОЙ!
 
 ┌──────────────────────────────────────────────────────────────┐
-│  1. Установить библиотеку:                                   │
-│     pip install python-telegram-bot                          │
+│  1. Установить библиотеки:                                   │
+│     pip install python-telegram-bot python-dotenv            │
 │                                                              │
-│  2. Запустить бота:                                          │
+│  2. Создать .env файл:                                       │
+│     cp .env.example .env                                     │
+│     Добавить токен: TELEGRAM_BOT_TOKEN=ваш_токен             │
+│                                                              │
+│  3. Запустить бота:                                          │
 │     python scripts/eve_farm_bot.py                           │
 │                                                              │
 │     ► Telegram бот запустится автоматически в фоне!          │
 │                                                              │
-│  3. Написать боту в Telegram:                                │
+│  4. Написать боту в Telegram:                                │
 │     /start                                                   │
 └──────────────────────────────────────────────────────────────┘
 
@@ -30,6 +34,8 @@
 
 📋 ФАЙЛЫ:
 
+  .env                         - ТОКЕН БОТА (создай из .env.example)
+  .env.example                 - Шаблон для .env
   scripts/eve_farm_bot.py      - ГЛАВНЫЙ ФАЙЛ (запускаешь его)
   scripts/telegram_bot.py      - Устарел (можно удалить)
   eve/telegram_notifier.py     - Модуль уведомлений
