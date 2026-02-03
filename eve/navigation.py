@@ -590,8 +590,8 @@ def farm_anomaly(guns_key: str = "2") -> bool:
         logger.error("Не удалось переключиться на PvP Foe")
         return False
 
-    # 3. Ждём появления целей (60 сек - пока летим)
-    if not wait_for_targets(timeout=60):
+    # 3. Ждём появления целей (45 сек - пока летим)
+    if not wait_for_targets(timeout=45):
         logger.warning("Цели не появились - аномалия уже зачищена")
         return True  # Считаем как успех
 

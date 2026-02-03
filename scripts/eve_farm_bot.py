@@ -449,9 +449,9 @@ def farm_current_system(logger, stats: BotStats) -> int:
             activate_support_modules(logger)
             support_modules_activated = True
 
-        # Ждём появления целей (до 60 сек - пока летим в варпе)
+        # Ждём появления целей (до 45 сек - пока летим в варпе)
         # wait_for_targets уже ждёт 3-4 сек после появления целей
-        if not wait_for_targets(timeout=60):
+        if not wait_for_targets(timeout=45):
             logger.warning("Цели не появились за 60 сек - аномалия уже зачищена")
             # Считаем как зачищенную (пока летели, все умерли)
             cleared += 1
