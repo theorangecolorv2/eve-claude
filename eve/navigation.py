@@ -389,7 +389,7 @@ def _has_yellow_pixels(x: int, y: int, region_size: int = 50, min_yellow_percent
     Args:
         x, y: Центр области
         region_size: Размер области для проверки
-        min_yellow_percent: Минимальный процент жёлтых пикселей (по умолчанию 2%)
+        min_yellow_percent: Минимальный процент жёлтых пикселей (по умолчанию 1%)
 
     Returns:
         True если есть достаточно жёлтых пикселей
@@ -405,6 +405,16 @@ def _has_yellow_pixels(x: int, y: int, region_size: int = 50, min_yellow_percent
     with mss.mss() as sct:
         img = sct.grab(region)
         frame = np.array(img)
+
+    # Сохраняем область для дебага
+    try:
+        from PIL import Image
+        debug_img = Image.frombytes('RGB', img.size, img.bgra, 'raw', 'BGRX')
+        debug_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "inbox", f"debug_yellow_{x}_{y}.png")
+        debug_img.save(debug_path)
+        logger.info(f"Сохранена проверяемая область: {debug_path}")
+    except Exception as e:
+        logger.debug(f"Ошибка сохранения дебаг изображения: {e}")
 
     # Конвертируем в HSV для проверки цвета
     if frame.shape[2] == 4:
@@ -435,33 +445,41 @@ def _has_yellow_pixels(x: int, y: int, region_size: int = 50, min_yellow_percent
 
 def click_yellow_gate() -> bool:
     """Кликнуть на жёлтый гейт (следующий на маршруте)."""
+    from .vision import find_all_images
+
     assets_path = _get_assets_path()
 
     # Проверяем оба варианта желтого гейта
     template1 = os.path.join(assets_path, NavigationConfig.GATE_YELLOW_TEMPLATE)
     template2 = os.path.join(assets_path, NavigationConfig.GATE_YELLOW2_TEMPLATE)
 
-    # Увеличенный confidence для более строгого совпадения
-    result = find_image(template1, confidence=0.85)
+    # Находим ВСЕ гейты (не только первый)
+    all_gates = find_all_images(template1, confidence=0.85)
 
-    if not result:
+    if not all_gates:
         # Попробуем второй вариант
-        result = find_image(template2, confidence=0.85)
+        all_gates = find_all_images(template2, confidence=0.85)
 
-    if result:
-        x, y = result
+    if not all_gates:
+        logger.error("Гейты не найдены (проверены оба варианта)")
+        return False
 
-        # Дополнительная проверка: есть ли жёлтые пиксели в области?
-        if not _has_yellow_pixels(x, y):
-            logger.warning(f"Найден гейт @ {result}, но он НЕ жёлтый - пропускаю")
-            return False
+    logger.info(f"Найдено гейтов: {len(all_gates)}")
 
-        logger.info(f"Кликаю на жёлтый гейт: {result}")
-        click(x, y)
-        random_delay(0.3, 0.6)
-        return True
+    # Проверяем каждый гейт на желтизну
+    for i, (x, y) in enumerate(all_gates, 1):
+        logger.debug(f"Проверяю гейт #{i} @ ({x}, {y})")
 
-    logger.error("Жёлтый гейт не найден (проверены оба варианта)")
+        if _has_yellow_pixels(x, y):
+            # Нашли желтый гейт!
+            logger.info(f"Найден ЖЕЛТЫЙ гейт #{i} @ ({x}, {y})")
+            click(x, y)
+            random_delay(0.3, 0.6)
+            return True
+        else:
+            logger.debug(f"Гейт #{i} не желтый, пропускаю")
+
+    logger.warning(f"Найдено {len(all_gates)} гейтов, но НИ ОДИН не желтый")
     return False
 
 
