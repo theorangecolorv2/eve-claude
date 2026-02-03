@@ -13,7 +13,8 @@
       "Bash(cmd /c \"copy /y D:\\\\eve-claude\\\\inbox\\\\убежище.png D:\\\\eve-claude\\\\assets\\\\eve_anomaly_ubejishe.png && copy /y D:\\\\eve-claude\\\\inbox\\\\укрытие.png D:\\\\eve-claude\\\\assets\\\\eve_anomaly_ukrytie.png\")",
       "Bash(powershell -Command \"Copy-Item ''D:\\\\eve-claude\\\\inbox\\\\убежище.png'' ''D:\\\\eve-claude\\\\assets\\\\eve_anomaly_ubejishe.png''; Copy-Item ''D:\\\\eve-claude\\\\inbox\\\\укрытие.png'' ''D:\\\\eve-claude\\\\assets\\\\eve_anomaly_ukrytie.png''; Write-Host ''Done''\")",
       "Bash(copy \"D:\\\\eve-claude\\\\inbox\\\\название.png\" \"D:\\\\eve-claude\\\\assets\\\\eve_overview_header_name.png\")",
-      "Bash(copy \"C:\\\\opt\\\\eve-claude\\\\inbox\\\\close.png\" \"C:\\\\opt\\\\eve-claude\\\\assets\\\\eve_expedition_close.png\")"
+      "Bash(copy \"C:\\\\opt\\\\eve-claude\\\\inbox\\\\close.png\" \"C:\\\\opt\\\\eve-claude\\\\assets\\\\eve_expedition_close.png\")",
+      "Bash(ls:*)"
     ]
   }
 }

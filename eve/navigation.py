@@ -61,7 +61,8 @@ class NavigationConfig:
     TAB_PVP_FOE_TEMPLATE = "eve_tab_pvp_foe.png"  # Вкладка PvP Foe
 
     # Гейты
-    GATE_YELLOW_TEMPLATE = "eve_gate_yellow.png"  # Жёлтый гейт (активный)
+    GATE_YELLOW_TEMPLATE = "eve_gate_yellow.png"  # Жёлтый гейт (активный) - вариант 1
+    GATE_YELLOW2_TEMPLATE = "eve_gate_yellow2.png"  # Жёлтый гейт (активный) - вариант 2
     BUTTON_JUMP_TEMPLATE = "eve_button_jump.png"  # Кнопка Jump (>>)
 
     # Индикаторы
@@ -433,10 +434,18 @@ def _has_yellow_pixels(x: int, y: int, region_size: int = 30, min_yellow_percent
 
 def click_yellow_gate() -> bool:
     """Кликнуть на жёлтый гейт (следующий на маршруте)."""
-    template_path = os.path.join(_get_assets_path(), NavigationConfig.GATE_YELLOW_TEMPLATE)
+    assets_path = _get_assets_path()
+
+    # Проверяем оба варианта желтого гейта
+    template1 = os.path.join(assets_path, NavigationConfig.GATE_YELLOW_TEMPLATE)
+    template2 = os.path.join(assets_path, NavigationConfig.GATE_YELLOW2_TEMPLATE)
 
     # Увеличенный confidence для более строгого совпадения
-    result = find_image(template_path, confidence=0.85)
+    result = find_image(template1, confidence=0.85)
+
+    if not result:
+        # Попробуем второй вариант
+        result = find_image(template2, confidence=0.85)
 
     if result:
         x, y = result
@@ -451,7 +460,7 @@ def click_yellow_gate() -> bool:
         random_delay(0.3, 0.6)
         return True
 
-    logger.error("Жёлтый гейт не найден")
+    logger.error("Жёлтый гейт не найден (проверены оба варианта)")
     return False
 
 
