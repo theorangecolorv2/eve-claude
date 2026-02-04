@@ -16,7 +16,7 @@ import numpy as np
 import cv2
 import mss
 
-from eve.overview import (
+from shared.eve.overview import (
     OverviewDetectConfig,
     is_overview_empty,
     find_header_position,

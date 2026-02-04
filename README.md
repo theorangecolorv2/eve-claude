@@ -1,253 +1,374 @@
 # EVE Online Bot Research Project
 
-> **Legal research project** for improving EVE Online's anti-bot system through collaboration with CCP Games.
+> **Исследовательский проект** по автоматизации EVE Online с целью изучения методов ботоводства.
 
 ---
 
-## ⚠️ Important Legal Notice
+## ⚠️ Важное юридическое уведомление
 
-### This is a LEGAL and AUTHORIZED research project
+### Это ЛЕГАЛЬНЫЙ исследовательский проект
 
-- ✅ **Test server only** (Singularity/Duality) - NO live server access
-- ✅ **CCP Alpha approved** - Special test account provided
-- ✅ **Open source** - All code public for CCP analysis
-- ✅ **Research purpose** - Help improve anti-bot detection
+- ✅ **Только тестовый сервер** (Singularity/Duality) - БЕЗ доступа к live серверу
+- ✅ **Одобрено CCP Alpha** - Предоставлен специальный тестовый аккаунт
+- ✅ **Open source** - Весь код публичен для анализа CCP
+- ✅ **Исследовательская цель** - Помочь улучшить систему анти-бот защиты
 
-### DO NOT use this for:
-- ❌ Live server (Tranquility) botting
-- ❌ EULA violation
-- ❌ Commercial exploitation
-- ❌ Any malicious purpose
-
----
-
-## 🎯 Project Goal
-
-**Help CCP Games improve their anti-bot system** by:
-1. Demonstrating real botting techniques
-2. Showing how bots mimic human behavior
-3. Providing code and methods for analysis
-4. Contributing to better bot detection
-
-This project is **NOT** for actual botting - it's for **research and collaboration** with game developers.
+### НЕ используйте для:
+- ❌ Ботинга на live сервере (Tranquility)
+- ❌ Нарушения EULA
+- ❌ Коммерческой эксплуатации
+- ❌ Любых вредоносных целей
 
 ---
 
-## 🏗 Project Structure
+## 🎯 Цель проекта
+
+**Помочь CCP Games улучшить анти-бот систему** через:
+1. Демонстрацию реальных техник ботоводства
+2. Показ методов имитации человеческого поведения
+3. Предоставление кода и методов для анализа
+4. Вклад в улучшение детектирования ботов
+
+Этот проект **НЕ** для реального ботинга - это для **исследований и сотрудничества** с разработчиками игры.
+
+---
+
+## 🏗 Структура проекта (Обновлено v0.4.0)
 
 ```
 eve-claude/
-├── README.md           # You are here (project overview)
-├── CLAUDE.md          # Main instructions for Claude Code agents
-├── PROJECT.md         # Detailed project context and legality
-├── WORKFLOW.md        # Development workflow guide
-├── HUMANIZATION.md    # Bot humanization requirements
-├── COMMANDS.md        # Dev tools reference
+├── README.md              # Обзор проекта
+├── CLAUDE.md             # Инструкции для Claude Code агентов
+├── PROJECT.md            # Детальный контекст и легальность
+├── WORKFLOW.md           # Руководство по разработке
+├── HUMANIZATION.md       # Требования к хуманизации бота
+├── COMMANDS.md           # Справка по dev tools
 │
-├── eve/               # Automation framework
-│   ├── __init__.py
-│   ├── screen.py      # Screen capture
-│   ├── vision.py      # Image recognition (OpenCV)
-│   ├── mouse.py       # Mouse control (humanized)
-│   ├── keyboard.py    # Keyboard control
-│   └── window.py      # Window management
+├── core/                 # ⚡ Ядро системы
+│   ├── sanderling/      # 🎯 Модуль чтения памяти (ГОТОВ)
+│   │   ├── service.py   # Фоновый сервис с автозапуском
+│   │   ├── parser.py    # Парсер UI tree
+│   │   ├── models.py    # Модели данных
+│   │   ├── cache.py     # Кэширование root address
+│   │   ├── config.py    # Управление конфигурацией
+│   │   └── README.md    # Документация модуля
+│   │
+│   └── cv/              # 🔍 Компьютерное зрение
+│       ├── template_matcher.py  # Template matching
+│       └── README.md    # Документация CV
 │
-├── inbox/             # UI screenshots input folder
-├── assets/            # Processed UI templates
-├── scripts/           # Automation scripts
-├── templates/         # Script templates
-├── dev_tools/         # Development utilities
-│   ├── capture.py     # Screen capture tool
-│   ├── crop.py        # Image cropping tool
-│   └── windows.py     # Window management tool
-├── logs/              # Bot execution logs
-└── temp/              # Temporary files
+├── shared/              # 🔧 Общие утилиты для всех ботов
+│   ├── actions.py       # Высокоуровневые действия
+│   ├── screen.py        # Захват экрана
+│   ├── window.py        # Управление окнами
+│   ├── vision.py        # Базовые CV операции
+│   ├── eve/             # EVE-специфичные модули
+│   │   ├── overview.py  # Overview (CV режим)
+│   │   ├── overview_hybrid.py  # 🎯 Гибридный режим (Sanderling + CV)
+│   │   ├── hud.py       # HUD
+│   │   ├── navigation.py # Навигация
+│   │   ├── combat.py    # Боевые действия
+│   │   └── telegram_notifier.py  # Уведомления
+│   └── README.md        # Документация утилит
+│
+├── bots/                # 🤖 Готовые боты
+│   ├── anomaly_farmer/  # Бот для фарма аномалий
+│   │   ├── main.py      # Основной скрипт
+│   │   ├── config.json  # Конфигурация
+│   │   └── README.md
+│   ├── abyss_farmer/    # Бот для абиссов (заготовка)
+│   │   ├── main.py
+│   │   ├── config.json
+│   │   └── README.md
+│   └── README.md        # Документация ботов
+│
+├── external/            # 📦 Внешние зависимости
+│   ├── Sanderling/      # Исходники C#
+│   └── sanderling-bin/  # Скомпилированные бинарники
+│
+├── resources/           # 📁 Ресурсы
+│   ├── assets/          # Изображения для CV
+│   └── config/          # Конфигурационные файлы
+│       └── sanderling.json  # Конфигурация Sanderling
+│
+├── output/              # 📤 Выходные данные
+│   ├── logs/            # Логи
+│   ├── debug/           # Дебаг данные
+│   ├── data/            # JSON данные и кэш
+│   └── temp/            # Временные файлы
+│
+├── docs/                # 📚 Документация
+│   └── examples/        # Примеры кода
+│
+├── dev_tools/           # 🛠 Утилиты для разработки
+│   ├── capture.py
+│   ├── crop.py
+│   └── windows.py
+│
+└── scripts/             # 📜 Вспомогательные скрипты
+    └── telegram_bot.py  # Telegram бот для управления
 ```
 
----
+### Ключевые изменения v0.4.0
 
-## 🚀 For Claude Code Agents
-
-**If you're a Claude Code agent working on this project:**
-
-1. **READ** `CLAUDE.md` first - it contains complete instructions
-2. **UNDERSTAND** `PROJECT.md` - know the legal context
-3. **FOLLOW** `WORKFLOW.md` - for efficient development
-4. **IMPLEMENT** `HUMANIZATION.md` - critical for research goals
+✅ **Реорганизация структуры** - Четкая иерархия папок
+✅ **Модуль Sanderling готов** - Автоматический запуск, кэширование, обработка ошибок
+✅ **Гибридный режим** - Sanderling + CV fallback
+✅ **Изоляция файлов** - Логи, дебаг, данные в отдельных папках
+✅ **Общие утилиты** - Единый набор инструментов для всех ботов
 
 ---
 
-## 🛠 Technology Stack
+## 🚀 Для Claude Code агентов
 
-- **Python 3.8+** - Main language
-- **OpenCV** - Template matching for UI element detection
-- **PyAutoGUI** - Mouse/keyboard automation (with humanization)
-- **MSS** - Fast screen capture
-- **Pillow** - Image processing
-- **PyGetWindow** - Window management
+**Если вы Claude Code агент, работающий над этим проектом:**
+
+1. **ПРОЧИТАЙТЕ** `CLAUDE.md` первым - содержит полные инструкции
+2. **ПОЙМИТЕ** `PROJECT.md` - знайте юридический контекст
+3. **СЛЕДУЙТЕ** `WORKFLOW.md` - для эффективной разработки
+4. **РЕАЛИЗУЙТЕ** `HUMANIZATION.md` - критично для исследовательских целей
 
 ---
 
-## 📖 Quick Start for Developers
+## 🛠 Технологический стек
 
-### Installation
+- **Python 3.8+** - Основной язык
+- **OpenCV** - Template matching для детекции UI элементов
+- **PyAutoGUI** - Автоматизация мыши/клавиатуры (с хуманизацией)
+- **MSS** - Быстрый захват экрана
+- **Pillow** - Обработка изображений
+- **PyGetWindow** - Управление окнами
+- **python-telegram-bot** - Telegram уведомления
+- **Sanderling (C#)** - Чтение памяти EVE Online (в разработке)
+
+---
+
+## 📖 Быстрый старт для разработчиков
+
+### Установка
 
 ```bash
-# Clone repository
+# Клонировать репозиторий
 git clone [repository-url]
 cd eve-claude
 
-# Install dependencies
+# Установить зависимости
 pip install -r requirements.txt
+
+# Настроить Telegram (опционально)
+# Создать .env файл и добавить:
+# TELEGRAM_BOT_TOKEN=your_token_here
 ```
 
-### Development Workflow
-
-1. **User describes task** (e.g., "automate mining")
-2. **User screenshots UI elements** (Win+Shift+S) → `inbox/`
-3. **Claude processes screenshots** → `assets/`
-4. **Claude writes automation script** → `scripts/`
-5. **Test on test server only**
-
-### Running Scripts
+### Запуск бота
 
 ```bash
-# Example automation script
-python scripts/eve_mining_automation.py
+# Основной бот для фарма аномалий
+python bots/anomaly_farmer/main.py
+
+# Или старый путь (совместимость)
+python scripts/eve_farm_bot.py
 ```
 
+### Использование Sanderling
+
+```python
+from core.sanderling.service import SanderlingService
+from core.sanderling.config import SanderlingConfig
+
+# Загрузить конфигурацию
+config = SanderlingConfig.load()
+
+# Создать и запустить сервис
+service = SanderlingService(config)
+service.start()  # Автоматически найдет EVE, загрузит кэш
+
+# Получить состояние игры
+state = service.get_state()
+if state:
+    print(f"Targets: {len(state.targets)}")
+    print(f"Overview entries: {len(state.overview)}")
+
+# Остановить сервис
+service.stop()
+```
+
+### Гибридный режим (Sanderling + CV)
+
+```python
+from shared.eve.overview_hybrid import OverviewManager
+from core.sanderling.service import SanderlingService
+
+# Запустить Sanderling
+service = SanderlingService()
+service.start()
+
+# Создать гибридный менеджер
+manager = OverviewManager(service)
+
+# Подсчитать цели (автоматический fallback на CV при ошибках)
+targets = manager.count_targets()
+print(f"Found {targets} targets")
+```
+
+### Workflow разработки
+
+1. **Пользователь описывает задачу** (например, "автоматизировать майнинг")
+2. **Пользователь делает скриншоты UI элементов** (Win+Shift+S) → `inbox/`
+3. **Claude обрабатывает скриншоты** → `assets/`
+4. **Claude пишет скрипт автоматизации** → `scripts/`
+5. **Тестирование только на тестовом сервере**
+
 ---
 
-## 🎮 EVE Online Specific Notes
+## 🎮 Специфика EVE Online
 
-### Test Server Only
+### Только тестовый сервер
 
-- **Singularity** - Main test server
-- **Duality** - Secondary test server
-- **NEVER Tranquility** - Live server (FORBIDDEN)
+- **Singularity** - Основной тестовый сервер
+- **Duality** - Вторичный тестовый сервер
+- **НИКОГДА Tranquility** - Live сервер (ЗАПРЕЩЕНО)
 
-Game launcher is pre-configured for test server. **DO NOT modify connection settings**.
+Лаунчер игры предварительно настроен на тестовый сервер. **НЕ ИЗМЕНЯЙТЕ настройки подключения**.
 
-### Bot Activities (Research)
+### Активности бота (Исследование)
 
-Current research focuses on:
-- PvE automation (missions, ratting, mining)
-- Human-like behavior patterns
-- Detection evasion techniques (for research)
+Текущий фокус исследований:
+- ✅ **Фарм аномалий** (Укрытия/Убежища) - полностью автоматизирован
+- ✅ **Навигация по маршруту** - автоматические прыжки между системами
+- ✅ **Детекция экспедиций** - уведомления в Telegram
+- ✅ **Чтение памяти** (Sanderling) - ГОТОВО! Автозапуск, кэширование, fallback
+- ✅ **Гибридный режим** - Sanderling + CV fallback для надежности
 
 ---
 
-## 🔬 Research Methods
+## 🔬 Методы исследования
 
 ### Template Matching
 
-Using OpenCV to find UI elements:
-- Simple and reliable
-- Easy to detect (intentional for research)
-- Demonstrates common bot technique
+Использование OpenCV для поиска UI элементов:
+- Простой и надёжный
+- Легко детектируется (намеренно для исследований)
+- Демонстрирует распространённую технику ботов
 
-### Humanization Techniques
+### Техники хуманизации
 
-- **Smooth mouse movements** (Bezier curves)
-- **Randomized timings** (no fixed delays)
-- **Natural behavior patterns** (variability)
-- **Reaction time simulation** (delayed responses)
+- **Плавные движения мыши** (кривые Безье)
+- **Рандомизированные тайминги** (без фиксированных задержек)
+- **Естественные паттерны поведения** (вариативность)
+- **Симуляция времени реакции** (задержанные ответы)
 
-See `HUMANIZATION.md` for detailed requirements.
+См. `HUMANIZATION.md` для детальных требований.
 
----
+### Чтение памяти (ГОТОВО!)
 
-## 📝 Code Standards
-
-All automation scripts must include:
-- ✅ Detailed logging (every action logged)
-- ✅ Error handling (try/except blocks)
-- ✅ Humanization (smooth movements, random delays)
-- ✅ Timeouts (no infinite loops)
-- ✅ Comments in Russian (for consistency)
-
----
-
-## 🤝 Contributing
-
-This project is developed with Claude Code assistance.
-
-### For Claude Code Agents
-
-See `CLAUDE.md` for complete development guidelines.
-
-### For Human Contributors
-
-If you want to contribute:
-1. Understand the legal context (PROJECT.md)
-2. Follow the workflow (WORKFLOW.md)
-3. Implement humanization (HUMANIZATION.md)
-4. Submit PR with clear description
+- **Sanderling** - C# библиотека для чтения UI tree из памяти
+- **Автоматический запуск** - Находит EVE процесс и запускается автоматически
+- **Кэширование** - Root address кэшируется для быстрого запуска (<1 сек вместо 20 сек)
+- **Обработка ошибок** - Автоматический retry, инвалидация кэша, fallback на CV
+- **Гибридный режим** - Использует Sanderling, автоматически переключается на CV при ошибках
+- **Прямой доступ к данным** - HP целей, состояние модулей, координаты элементов
+- **Статус**: ✅ Полностью интегрирован и работает
 
 ---
 
-## 📜 License
+## 📝 Стандарты кода
 
-[To be determined - likely MIT or similar open source license]
-
----
-
-## ⚖️ Ethics and Responsibility
-
-### Our Commitments
-
-1. **Transparency** - All code is public
-2. **Collaboration** - Working WITH CCP, not against them
-3. **Legality** - Strict adherence to terms and conditions
-4. **Community benefit** - Goal is to help, not harm
-
-### Principles
-
-- Work only on test servers
-- Don't distribute for EULA violation
-- Cooperate with CCP Games
-- Document all methods for research
+Все скрипты автоматизации должны включать:
+- ✅ Детальное логирование (каждое действие логируется)
+- ✅ Обработка ошибок (try/except блоки)
+- ✅ Хуманизация (плавные движения, случайные задержки)
+- ✅ Таймауты (без бесконечных циклов)
+- ✅ Комментарии на русском (для консистентности)
 
 ---
 
-## 📞 Contact
+## 🤝 Вклад в проект
 
-For questions about legality or project goals, contact repository owner.
+Этот проект разрабатывается с помощью Claude Code.
 
-**Remember**: This project exists to **help** EVE Online, not exploit it.
+### Для Claude Code агентов
+
+См. `CLAUDE.md` для полного руководства по разработке.
+
+### Для человеческих контрибьюторов
+
+Если хотите внести вклад:
+1. Поймите юридический контекст (PROJECT.md)
+2. Следуйте workflow (WORKFLOW.md)
+3. Реализуйте хуманизацию (HUMANIZATION.md)
+4. Отправьте PR с чётким описанием
 
 ---
 
-## 🔗 Important Documents
+## 📜 Лицензия
 
-| Document | Purpose |
+[Будет определена - вероятно MIT или похожая open source лицензия]
+
+---
+
+## ⚖️ Этика и ответственность
+
+### Наши обязательства
+
+1. **Прозрачность** - Весь код публичен
+2. **Сотрудничество** - Работа С CCP, не против них
+3. **Легальность** - Строгое соблюдение условий
+4. **Польза сообществу** - Цель помочь, не навредить
+
+### Принципы
+
+- Работа только на тестовых серверах
+- Не распространять для нарушения EULA
+- Сотрудничать с CCP Games
+- Документировать все методы для исследований
+
+---
+
+## 📞 Контакты
+
+По вопросам легальности или целей проекта обращайтесь к владельцу репозитория.
+
+**Помните**: Этот проект существует чтобы **помочь** EVE Online, не эксплуатировать его.
+
+---
+
+## 🔗 Важные документы
+
+| Документ | Назначение |
 |----------|---------|
-| [CLAUDE.md](CLAUDE.md) | Main instructions for Claude Code agents |
-| [PROJECT.md](PROJECT.md) | Detailed project context and legality |
-| [WORKFLOW.md](WORKFLOW.md) | Development process guide |
-| [HUMANIZATION.md](HUMANIZATION.md) | Bot humanization requirements |
-| [COMMANDS.md](COMMANDS.md) | Dev tools command reference |
+| [CLAUDE.md](CLAUDE.md) | Основные инструкции для Claude Code агентов |
+| [PROJECT.md](PROJECT.md) | Детальный контекст проекта и легальность |
+| [WORKFLOW.md](WORKFLOW.md) | Руководство по процессу разработки |
+| [HUMANIZATION.md](HUMANIZATION.md) | Требования к хуманизации бота |
+| [COMMANDS.md](COMMANDS.md) | Справка по командам dev tools |
+| [docs/SANDERLING.md](docs/SANDERLING.md) | ✅ Полная документация по Sanderling (API, примеры, оптимизация) |
 
 ---
 
-**Last updated**: 2026-01-28
+**Последнее обновление**: 2026-02-04 (v0.4.0 - Sanderling Integration Complete)
 
 ---
 
-## 🏁 Status
+## 🏁 Статус
 
-**Project Status**: Active Development
+**Статус проекта**: Активная разработка
 
-**Current Focus**: Framework setup and initial automation scripts
+**Текущий фокус**: 
+- ✅ Фарм бот полностью функционален
+- ✅ Интеграция Sanderling (чтение памяти) - ЗАВЕРШЕНА!
+- ✅ Гибридный режим (Sanderling + CV fallback)
+- ✅ Реорганизация структуры проекта
+- 🚧 Миграция бота на новую структуру
 
-**Test Server**: Configured and ready
+**Тестовый сервер**: Настроен и готов
 
-**CCP Cooperation**: Ongoing
+**Сотрудничество с CCP**: Продолжается
 
 ---
 
-**Built with**: Claude Code (Anthropic) + Human collaboration
+**Создано с**: Claude Code (Anthropic) + Человеческое сотрудничество
 
-**For**: EVE Online community and CCP Games
+**Для**: Сообщества EVE Online и CCP Games
 
-**Purpose**: Improve anti-bot systems through research
+**Цель**: Улучшить анти-бот системы через исследования

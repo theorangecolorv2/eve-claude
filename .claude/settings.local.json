@@ -14,7 +14,16 @@
       "Bash(powershell -Command \"Copy-Item ''D:\\\\eve-claude\\\\inbox\\\\убежище.png'' ''D:\\\\eve-claude\\\\assets\\\\eve_anomaly_ubejishe.png''; Copy-Item ''D:\\\\eve-claude\\\\inbox\\\\укрытие.png'' ''D:\\\\eve-claude\\\\assets\\\\eve_anomaly_ukrytie.png''; Write-Host ''Done''\")",
       "Bash(copy \"D:\\\\eve-claude\\\\inbox\\\\название.png\" \"D:\\\\eve-claude\\\\assets\\\\eve_overview_header_name.png\")",
       "Bash(copy \"C:\\\\opt\\\\eve-claude\\\\inbox\\\\close.png\" \"C:\\\\opt\\\\eve-claude\\\\assets\\\\eve_expedition_close.png\")",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(dotnet --version:*)",
+      "Bash(dotnet --list-sdks:*)",
+      "Bash(curl:*)",
+      "Bash(unzip:*)",
+      "Bash(./sanderling-bin/read-memory-64-bit.exe:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell \"Get-Process | Where-Object {$_ProcessName -like ''*eve*'' -or $_ProcessName -like ''*exefile*''} | Select-Object Id, ProcessName, MainWindowTitle\")",
+      "Bash(powershell -Command \"Get-Process exefile -ErrorAction SilentlyContinue | Select-Object Id, ProcessName\")"
     ]
   }
 }

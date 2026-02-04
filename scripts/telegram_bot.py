@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-from eve.telegram_notifier import (
+from shared.eve.telegram_notifier import (
     BOT_TOKEN,
     add_user,
     load_users,

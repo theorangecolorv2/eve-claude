@@ -40,7 +40,7 @@ from eve import (
     hotkey,
     screenshot
 )
-from eve.mouse import move_to, click
+from shared.mouse import move_to, click
 
 # Настройка логирования
 logging.basicConfig(

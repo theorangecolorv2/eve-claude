@@ -70,7 +70,9 @@ class NavigationConfig:
 
     # Аномалии
     ANOMALY_UBEJISHE_TEMPLATE = "eve_anomaly_ubejishe.png"  # Убежище
+    ANOMALY_UBEJISHE_HIGHLIGHTED_TEMPLATE = "eve_anomaly_ubejishe_highlighted.png"  # Убежище (подсвеченное)
     ANOMALY_UKRYTIE_TEMPLATE = "eve_anomaly_ukrytie.png"  # Укрытие
+    ANOMALY_UKRYTIE_HIGHLIGHTED_TEMPLATE = "eve_anomaly_ukrytie_highlighted.png"  # Укрытие (подсвеченное)
 
     # Варп меню
     WARP_0_TEMPLATE = "eve_warp_0.png"  # Варп в 0 м (для укрытия)
@@ -97,22 +99,44 @@ def _get_assets_path() -> str:
 # ============================================================================
 
 def has_anomaly_ubejishe() -> bool:
-    """Проверить есть ли аномалия 'Убежище'."""
-    template_path = os.path.join(_get_assets_path(), NavigationConfig.ANOMALY_UBEJISHE_TEMPLATE)
-    result = find_image(template_path, confidence=0.92)
+    """Проверить есть ли аномалия 'Убежище' (обычное или подсвеченное)."""
+    assets_path = _get_assets_path()
+
+    # Проверяем обычное
+    template1 = os.path.join(assets_path, NavigationConfig.ANOMALY_UBEJISHE_TEMPLATE)
+    result = find_image(template1, confidence=0.92)
     if result:
         logger.info("Найдена аномалия: Убежище")
         return True
+
+    # Проверяем подсвеченное
+    template2 = os.path.join(assets_path, NavigationConfig.ANOMALY_UBEJISHE_HIGHLIGHTED_TEMPLATE)
+    result = find_image(template2, confidence=0.92)
+    if result:
+        logger.info("Найдена аномалия: Убежище (подсвеченное)")
+        return True
+
     return False
 
 
 def has_anomaly_ukrytie() -> bool:
-    """Проверить есть ли аномалия 'Укрытие'."""
-    template_path = os.path.join(_get_assets_path(), NavigationConfig.ANOMALY_UKRYTIE_TEMPLATE)
-    result = find_image(template_path, confidence=0.92)
+    """Проверить есть ли аномалия 'Укрытие' (обычное или подсвеченное)."""
+    assets_path = _get_assets_path()
+
+    # Проверяем обычное
+    template1 = os.path.join(assets_path, NavigationConfig.ANOMALY_UKRYTIE_TEMPLATE)
+    result = find_image(template1, confidence=0.92)
     if result:
         logger.info("Найдена аномалия: Укрытие")
         return True
+
+    # Проверяем подсвеченное
+    template2 = os.path.join(assets_path, NavigationConfig.ANOMALY_UKRYTIE_HIGHLIGHTED_TEMPLATE)
+    result = find_image(template2, confidence=0.92)
+    if result:
+        logger.info("Найдена аномалия: Укрытие (подсвеченное)")
+        return True
+
     return False
 
 
@@ -127,15 +151,33 @@ def has_anomalies() -> bool:
 
 
 def find_anomaly_ukrytie() -> Optional[Tuple[int, int]]:
-    """Найти координаты укрытия."""
-    template_path = os.path.join(_get_assets_path(), NavigationConfig.ANOMALY_UKRYTIE_TEMPLATE)
-    return find_image(template_path, confidence=0.92)
+    """Найти координаты укрытия (обычное или подсвеченное)."""
+    assets_path = _get_assets_path()
+
+    # Сначала обычное
+    template1 = os.path.join(assets_path, NavigationConfig.ANOMALY_UKRYTIE_TEMPLATE)
+    result = find_image(template1, confidence=0.92)
+    if result:
+        return result
+
+    # Потом подсвеченное
+    template2 = os.path.join(assets_path, NavigationConfig.ANOMALY_UKRYTIE_HIGHLIGHTED_TEMPLATE)
+    return find_image(template2, confidence=0.92)
 
 
 def find_anomaly_ubejishe() -> Optional[Tuple[int, int]]:
-    """Найти координаты убежища."""
-    template_path = os.path.join(_get_assets_path(), NavigationConfig.ANOMALY_UBEJISHE_TEMPLATE)
-    return find_image(template_path, confidence=0.92)
+    """Найти координаты убежища (обычное или подсвеченное)."""
+    assets_path = _get_assets_path()
+
+    # Сначала обычное
+    template1 = os.path.join(assets_path, NavigationConfig.ANOMALY_UBEJISHE_TEMPLATE)
+    result = find_image(template1, confidence=0.92)
+    if result:
+        return result
+
+    # Потом подсвеченное
+    template2 = os.path.join(assets_path, NavigationConfig.ANOMALY_UBEJISHE_HIGHLIGHTED_TEMPLATE)
+    return find_image(template2, confidence=0.92)
 
 
 def find_anomaly() -> Optional[Tuple[str, Tuple[int, int]]]:

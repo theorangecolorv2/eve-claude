@@ -1,0 +1,8 @@
+{
+  "bot_name": "Abyss Farmer",
+  "version": "0.1.0",
+  "status": "in_development",
+  "guns_key": "2",
+  "use_sanderling": false,
+  "use_telegram": false
+}

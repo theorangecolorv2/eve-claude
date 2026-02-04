@@ -2,6 +2,12 @@
 Eve Framework - Visual Windows Automation
 Автоматизация Windows приложений через распознавание изображений.
 
+DEPRECATED: This module is kept for backward compatibility.
+Please use the new import paths:
+- shared.mouse, shared.keyboard, shared.window, shared.screen, shared.vision, shared.actions
+- shared.eve.overview, shared.eve.hud, shared.eve.combat, shared.eve.navigation
+- core.sanderling for Sanderling integration
+
 Модули:
 - mouse: Хуманизированное управление мышью (Bezier curves)
 - keyboard: Управление клавиатурой
@@ -17,10 +23,10 @@ EVE-специфичные модули:
 """
 
 # Screen
-from eve.screen import screenshot, crop_and_save
+from shared.screen import screenshot, crop_and_save
 
 # Vision (template matching)
-from eve.vision import (
+from shared.vision import (
     find_image,
     find_all_images,
     wait_image,
@@ -28,7 +34,7 @@ from eve.vision import (
 )
 
 # Mouse (с хуманизацией)
-from eve.mouse import (
+from shared.mouse import (
     click,
     double_click,
     right_click,
@@ -42,7 +48,7 @@ from eve.mouse import (
 )
 
 # Keyboard
-from eve.keyboard import (
+from shared.keyboard import (
     type_text,
     type_unicode,
     press_key,
@@ -52,7 +58,7 @@ from eve.keyboard import (
 )
 
 # Window
-from eve.window import (
+from shared.window import (
     activate_window,
     list_windows,
     get_active_window,
@@ -64,7 +70,7 @@ from eve.window import (
 )
 
 # Actions (высокоуровневые действия)
-from eve.actions import (
+from shared.actions import (
     click_on_image,
     double_click_on_image,
     right_click_on_image,
@@ -82,7 +88,7 @@ from eve.actions import (
 # === EVE-СПЕЦИФИЧНЫЕ МОДУЛИ ===
 
 # HUD (пушки, модули)
-from eve.hud import (
+from shared.eve.hud import (
     HUDConfig,
     find_gun,
     get_gun_region,
@@ -93,7 +99,7 @@ from eve.hud import (
 )
 
 # Overview (подсчёт целей, лок, убийство)
-from eve.overview import (
+from shared.eve.overview import (
     OverviewDetectConfig,
     is_overview_empty,
     has_locked_targets,
@@ -108,14 +114,14 @@ from eve.overview import (
 )
 
 # Combat (дроны)
-from eve.combat import (
+from shared.eve.combat import (
     launch_drones,
     engage_drones,
     recall_drones,
 )
 
 # Navigation (навигация по маршруту)
-from eve.navigation import (
+from shared.eve.navigation import (
     NavigationConfig,
     has_anomaly_ubejishe,
     has_anomaly_ukrytie,
@@ -136,6 +142,9 @@ from eve.navigation import (
     farm_anomaly,
     farm_system,
 )
+
+# Abyss (вход в Бездну)
+from eve.abyss import enter_abyss
 
 
 __version__ = "0.3.0"
@@ -233,4 +242,6 @@ __all__ = [
     "jump_to_next_system",
     "farm_anomaly",
     "farm_system",
+    # Abyss
+    "enter_abyss",
 ]

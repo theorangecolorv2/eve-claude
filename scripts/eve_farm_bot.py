@@ -47,7 +47,7 @@ from eve import (
 )
 
 # Telegram уведомления
-from eve.telegram_notifier import notify_expedition, notify_error
+from shared.eve.telegram_notifier import notify_expedition, notify_error
 
 # ============================================================================
 # КОНФИГУРАЦИЯ БОТА
@@ -281,7 +281,7 @@ def start_telegram_bot_background():
     try:
         from telegram import Update
         from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-        from eve.telegram_notifier import BOT_TOKEN, add_user, load_users, format_stats
+        from shared.eve.telegram_notifier import BOT_TOKEN, add_user, load_users, format_stats
 
         # Проверка токена
         if not BOT_TOKEN:
@@ -424,7 +424,7 @@ def farm_current_system(logger, stats: BotStats) -> int:
         logger.info(f"Найдена аномалия: {anomaly_type} @ {coords}")
 
         # Варп в аномалию
-        from eve.navigation import warp_to_ukrytie, warp_to_ubejishe
+        from shared.eve.navigation import warp_to_ukrytie, warp_to_ubejishe
 
         if anomaly_type == "ukrytie":
             if not warp_to_ukrytie(coords):

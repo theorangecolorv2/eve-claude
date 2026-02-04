@@ -49,14 +49,26 @@ def type_unicode(text: str, interval: float = 0.05):
 
 def press_key(key: str):
     """
-    Нажать клавишу.
+    Нажать клавишу или комбинацию клавиш.
 
     Args:
         key: Имя клавиши (enter, tab, escape, space, backspace, delete,
              up, down, left, right, home, end, pageup, pagedown,
              f1-f12, и т.д.)
+             Или комбинация через + (например: 'alt+c', 'ctrl+shift+s')
+    
+    Examples:
+        press_key('enter')
+        press_key('alt+c')
+        press_key('ctrl+shift+s')
     """
-    pyautogui.press(key)
+    if '+' in key:
+        # Комбинация клавиш
+        keys = key.split('+')
+        pyautogui.hotkey(*keys)
+    else:
+        # Одна клавиша
+        pyautogui.press(key)
 
 
 def hotkey(*keys: str):

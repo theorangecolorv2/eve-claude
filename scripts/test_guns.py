@@ -15,8 +15,8 @@ import mss
 import numpy as np
 import cv2
 
-from eve.vision import find_image
-from eve.hud import HUDConfig
+from shared.vision import find_image
+from shared.eve.hud import HUDConfig
 
 
 def list_monitors():

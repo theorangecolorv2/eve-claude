@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "fallback_to_cv": true,
+  "cache_enabled": true,
+  "read_interval_ms": 1000,
+  "max_retries": 3,
+  "timeout_ms": 5000,
+  "binary_path": "external/sanderling-bin/read-memory-64-bit.exe",
+  "debug_mode": true
+}
