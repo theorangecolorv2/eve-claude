@@ -66,12 +66,17 @@ class InventoryManager:
         
         logger.info(f"Кликаю по кнопке Inventory в {inventory_button.center}")
         click(inventory_button.center[0], inventory_button.center[1])
-        time.sleep(DELAY_BETWEEN_ACTIONS)
         
-        # Проверяем что открылось
-        if self.is_open():
-            logger.info("Инвентарь открыт")
-            return True
+        # Ждем пока Sanderling перечитает интерфейс (несколько попыток)
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            time.sleep(0.5)  # Даем время Sanderling на чтение
+            
+            if self.is_open():
+                logger.info(f"Инвентарь открыт (попытка {attempt + 1}/{max_attempts})")
+                return True
+            
+            logger.debug(f"Попытка {attempt + 1}/{max_attempts}: инвентарь еще не открыт...")
         
         logger.warning("Инвентарь не открылся после клика")
         return False
@@ -98,8 +103,6 @@ class InventoryManager:
     
     def activate_filter(self, filter_name: str) -> bool:
         """Активировать фильтр инвентаря."""
-        time.sleep(DELAY_AFTER_CLICK)
-        
         filter_obj = self.get_filter(filter_name)
         if not filter_obj:
             logger.error(f"Filter '{filter_name}' not found")
@@ -111,10 +114,10 @@ class InventoryManager:
         
         logger.info(f"Activate filter '{filter_name}' at {filter_obj.center}")
         click(filter_obj.center[0], filter_obj.center[1])
-        time.sleep(DELAY_BETWEEN_ACTIONS)
         
-        # Не проверяем активность т.к. это может не обновиться сразу
-        # Просто считаем что клик выполнен успешно
+        # Даем время на обновление списка предметов
+        time.sleep(0.5)
+        
         return True
     
     def find_item(self, item_name: str) -> Optional[InventoryItem]:
@@ -237,8 +240,9 @@ class InventoryManager:
             logger.warning("Не удалось активировать фильтр филаментов")
             # Продолжаем, возможно филамент все равно виден
         
-        # Подождать обновления списка
-        time.sleep(DELAY_BETWEEN_ACTIONS)
+        # Подождать обновления списка предметов после фильтра
+        # Sanderling должен перечитать инвентарь
+        time.sleep(1.0)
         
         # Шаг 3-5: Использовать филамент
         logger.info(f"Ищу и использую филамент: {filament_name}")

@@ -1150,12 +1150,16 @@ class UITreeParser:
         # Парсим предметы
         items = self._parse_inventory_items(node, inv_x, inv_y)
         
+        # Парсим кнопку "Взять все"
+        loot_all_button = self._parse_loot_all_button(node, inv_x, inv_y)
+        
         return InventoryWindow(
             is_open=True,
             center=inv_center,
             bounds=inv_bounds,
             filters=filters,
-            items=items
+            items=items,
+            loot_all_button=loot_all_button
         )
     
     def _parse_inventory_filters(self, node: dict, inv_x: int, inv_y: int) -> List['InventoryFilter']:
@@ -1214,6 +1218,99 @@ class UITreeParser:
             filters.append(filter_obj)
         
         return filters
+    
+    def _parse_loot_all_button(self, node: dict, inv_x: int, inv_y: int) -> Optional[Tuple[int, int]]:
+        """
+        Найти кнопку "Взять все" (invLootAllBtn).
+        
+        Args:
+            node: Корневой узел UI tree
+            inv_x: X координата окна инвентаря
+            inv_y: Y координата окна инвентаря
+            
+        Returns:
+            Абсолютные координаты кнопки или None
+        """
+        # Ищем кнопку по имени "invLootAllBtn" через рекурсивный поиск
+        def find_button(n: dict) -> Optional[dict]:
+            """Рекурсивный поиск кнопки по имени."""
+            if not isinstance(n, dict):
+                return None
+            
+            # Проверяем текущий узел
+            dict_entries = n.get('dictEntriesOfInterest', {})
+            if dict_entries.get('_name') == 'invLootAllBtn':
+                return n
+            
+            # Ищем в children
+            children = n.get('children', [])
+            if isinstance(children, list):
+                for child in children:
+                    result = find_button(child)
+                    if result:
+                        return result
+            
+            return None
+        
+        button_node = find_button(node)
+        if not button_node:
+            return None
+        
+        # Нужно найти путь к кнопке для вычисления абсолютных координат
+        # Ищем Button с именем invLootAllBtn
+        button_paths = []
+        
+        def find_paths(n: dict, path: List[dict] = None):
+            if path is None:
+                path = []
+            
+            if not isinstance(n, dict):
+                return
+            
+            current_path = path + [n]
+            
+            # Проверяем текущий узел
+            if n.get('pythonObjectTypeName') == 'Button':
+                dict_entries = n.get('dictEntriesOfInterest', {})
+                if dict_entries.get('_name') == 'invLootAllBtn':
+                    button_paths.append(current_path)
+            
+            # Рекурсия в children
+            children = n.get('children', [])
+            if isinstance(children, list):
+                for child in children:
+                    find_paths(child, current_path)
+        
+        find_paths(node)
+        
+        if not button_paths:
+            return None
+        
+        # Берем первый найденный путь
+        button_path = button_paths[0]
+        button_coords = self._extract_absolute_coordinates(button_path)
+        
+        if not button_coords:
+            return None
+        
+        # Получаем размеры кнопки для вычисления центра
+        button_dict = button_path[-1].get('dictEntriesOfInterest', {})
+        
+        width = button_dict.get('_displayWidth', 80)
+        height = button_dict.get('_displayHeight', 24)
+        
+        if isinstance(width, dict) and 'int_low32' in width:
+            width = width['int_low32']
+        if isinstance(height, dict) and 'int_low32' in height:
+            height = height['int_low32']
+        
+        # Вычисляем центр кнопки
+        button_center = (
+            button_coords[0] + int(width) // 2,
+            button_coords[1] + int(height) // 2
+        )
+        
+        return button_center
     
     def _parse_inventory_items(self, node: dict, inv_x: int, inv_y: int) -> List['InventoryItem']:
         """

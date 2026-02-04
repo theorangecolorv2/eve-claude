@@ -107,6 +107,7 @@ class InventoryWindow:
     bounds: Optional[Tuple[int, int, int, int]] = None  # x, y, width, height
     filters: List[InventoryFilter] = field(default_factory=list)
     items: List[InventoryItem] = field(default_factory=list)
+    loot_all_button: Optional[Tuple[int, int]] = None  # Координаты кнопки "Взять все"
 
 
 @dataclass

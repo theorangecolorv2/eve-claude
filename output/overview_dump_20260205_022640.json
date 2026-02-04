@@ -1,0 +1,82 @@
+[
+  {
+    "index": 0,
+    "name": "<localized hint=\"Transfer Conduit (Triglavian)\">Transfer Conduit (Triglavian)*</localized>",
+    "type": "Transfer Conduit (Triglavian)",
+    "distance": "8 221 м",
+    "center": [
+      1371,
+      330
+    ],
+    "bounds": [
+      0,
+      24,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 1,
+    "name": "<localized hint=\"Triglavian Extraction SubNode\">Triglavian Extraction SubNode*</localized>",
+    "type": "Triglavian Extraction SubNode",
+    "distance": "65 км",
+    "center": [
+      1371,
+      402
+    ],
+    "bounds": [
+      0,
+      96,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 2,
+    "name": "<localized hint=\"Triglavian Extraction Node\">Triglavian Extraction Node*</localized>",
+    "type": "Triglavian Extraction Node",
+    "distance": "59 км",
+    "center": [
+      1371,
+      378
+    ],
+    "bounds": [
+      0,
+      72,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 3,
+    "name": "<localized hint=\"Triglavian Extraction Node\">Triglavian Extraction Node*</localized>",
+    "type": "Triglavian Extraction Node",
+    "distance": "35 км",
+    "center": [
+      1371,
+      354
+    ],
+    "bounds": [
+      0,
+      48,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 4,
+    "name": "[<font size=12>GAM B]</font><font size=10><color=0xFF7FFF1F><i><localized hint=\"Triglavian Biocombinative Cache* Wreck\">Остов <localized hint=\"Triglavian Biocombinative Cache\">Triglavian Biocombinative Cache**</localized></i> </color></font><br><font size=12><color=0xFFFFB300><u><localized hint=\"Biocombinative Cache Wreck\">Biocombinative Cache Wreck*</localized></u> </color></font>",
+    "type": "Biocombinative Cache Wreck",
+    "distance": "65 м",
+    "center": [
+      1371,
+      306
+    ],
+    "bounds": [
+      0,
+      0,
+      438,
+      24
+    ]
+  }
+]

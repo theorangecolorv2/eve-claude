@@ -1,5 +1,5 @@
 """
-Модуль для работы с Triglavian Bioadaptive Cache (контейнер с лутом).
+Модуль для работы с Triglavian Cache (Bioadaptive/Biocombinative) (контейнер с лутом).
 
 Переиспользуемый компонент для:
 - Аппроча к контейнеру
@@ -21,7 +21,7 @@ def process_cache(
     sanderling: SanderlingService,
     approach_timeout: float = 120.0,
     kill_timeout: float = 60.0,
-    attack_distance_km: float = 30.0,
+    attack_distance_km: float = 35.0,
     enable_mwd: bool = True,
     launch_drones: bool = True
 ) -> bool:
@@ -78,7 +78,7 @@ def process_cache(
     if launch_drones:
         logger.info("Шаг 4: Выпускаю дронов...")
         launch_drones_safe()
-        random_delay(1.0, 1.5)
+        random_delay(1.5, 2.0)  # Даем больше времени на выпуск
     
     # 5. Ждать приближения и атаковать
     logger.info(f"Шаг 5: Жду приближения до {attack_distance_km} км...")
@@ -106,7 +106,7 @@ def process_cache(
 
 def find_cache(sanderling: SanderlingService, timeout: float = 5.0) -> Optional[object]:
     """
-    Найти Triglavian Bioadaptive Cache в overview.
+    Найти Triglavian Cache (Bioadaptive/Biocombinative) в overview.
     
     Args:
         sanderling: Сервис Sanderling
@@ -123,12 +123,29 @@ def find_cache(sanderling: SanderlingService, timeout: float = 5.0) -> Optional[
             time.sleep(0.5)
             continue
         
-        # Ищем контейнер по имени
+        # Ищем контейнер по имени и типу (проверяем разные варианты)
         for entry in state.overview:
-            if entry.name and 'Triglavian Bioadaptive Cache' in entry.name:
+            name_str = (entry.name or "").lower()
+            type_str = (entry.type or "").lower()
+            
+            # Проверяем разные варианты названия в name и type
+            if any(keyword in name_str or keyword in type_str for keyword in [
+                'bioadaptive cache',
+                'biocombinative cache',
+                'triglavian cache'
+            ]):
+                logger.debug(f"Найден контейнер: '{entry.name}' (type: '{entry.type}')")
                 return entry
         
         time.sleep(0.5)
+    
+    # Если не нашли - логируем что есть в overview
+    logger.warning("Контейнер не найден в overview!")
+    state = sanderling.get_state()
+    if state and state.overview:
+        logger.warning(f"В overview {len(state.overview)} записей:")
+        for entry in state.overview[:10]:
+            logger.warning(f"  - {entry.name}")
     
     return None
 
@@ -150,22 +167,25 @@ def approach_cache(sanderling: SanderlingService, cache_entry: object) -> bool:
         return False
     
     logger.debug(f"Кликаю по контейнеру @ {cache_entry.center}")
-    click(cache_entry.center[0], cache_entry.center[1])
-    random_delay(0.5, 0.8)
+    click(cache_entry.center[0], cache_entry.center[1], duration=0.15)
+    random_delay(0.5, 0.8)  # Даем время Sanderling обновиться
     
-    # Найти кнопку "approach" в selected actions
-    state = sanderling.get_state()
-    if not state or not state.selected_actions:
-        logger.error("Нет доступных действий")
-        return False
+    # Ждем пока появятся selected actions (до 3 секунд)
+    approach_action = None
+    for _ in range(6):  # 6 попыток по 0.5 сек = 3 сек
+        state = sanderling.get_state()
+        if state and state.selected_actions:
+            approach_action = next((a for a in state.selected_actions if a.name == 'approach'), None)
+            if approach_action:
+                break
+        time.sleep(0.5)
     
-    approach_action = next((a for a in state.selected_actions if a.name == 'approach'), None)
     if not approach_action:
-        logger.error("Кнопка 'approach' не найдена")
+        logger.error("Кнопка 'approach' не найдена после ожидания")
         return False
     
     logger.debug(f"Кликаю 'approach' @ {approach_action.center}")
-    click(approach_action.center[0], approach_action.center[1])
+    click(approach_action.center[0], approach_action.center[1], duration=0.15)
     
     return True
 
@@ -210,18 +230,22 @@ def launch_drones_safe() -> None:
     """
     logger.info("Выпускаю дронов (Shift+F)...")
     
-    # Зажимаем Shift
-    key_down('shift')
-    random_delay(0.1, 0.15)
+    try:
+        # Зажимаем Shift
+        key_down('shift')
+        random_delay(0.15, 0.2)
+        
+        # Нажимаем F
+        press_key('f')
+        random_delay(0.15, 0.2)
+        
+    finally:
+        # ОБЯЗАТЕЛЬНО отпускаем Shift (даже если была ошибка)
+        key_up('shift')
+        logger.debug("Shift отпущен")
     
-    # Нажимаем F
-    press_key('f')
-    random_delay(0.1, 0.15)
-    
-    # ОБЯЗАТЕЛЬНО отпускаем Shift
-    key_up('shift')
-    
-    logger.debug("Дроны выпущены, Shift отпущен")
+    logger.info("Команда на выпуск дронов отправлена")
+    random_delay(0.5, 0.8)  # Даем время на выпуск
 
 
 def wait_and_attack(
@@ -249,7 +273,17 @@ def wait_and_attack(
             continue
         
         # Найти контейнер в overview
-        cache = next((e for e in state.overview if e.name and 'Triglavian Bioadaptive Cache' in e.name), None)
+        cache = None
+        for e in state.overview:
+            name_str = (e.name or "").lower()
+            type_str = (e.type or "").lower()
+            if any(keyword in name_str or keyword in type_str for keyword in [
+                'bioadaptive cache',
+                'biocombinative cache'
+            ]):
+                cache = e
+                break
+        
         if not cache:
             logger.warning("Контейнер исчез из overview")
             time.sleep(0.5)
@@ -269,22 +303,25 @@ def wait_and_attack(
             # Лочим контейнер (Ctrl+Click)
             logger.debug("Лочу контейнер (Ctrl+Click)...")
             key_down('ctrl')
-            random_delay(0.1, 0.15)
-            click(cache.center[0], cache.center[1])
-            random_delay(0.1, 0.15)
+            random_delay(0.05, 0.1)
+            click(cache.center[0], cache.center[1], duration=0.1)
+            random_delay(0.05, 0.1)
             key_up('ctrl')
             
-            random_delay(0.5, 0.8)
+            # ВАЖНО: Ждем пока контейнер появится в targets
+            logger.debug("Жду появления контейнера в targets...")
+            random_delay(1.5, 2.0)
             
             # Активируем ракеты (кнопка 1)
             logger.debug("Активирую ракеты (кнопка 1)...")
             press_key('1')
             
-            random_delay(0.3, 0.5)
+            random_delay(0.5, 0.8)
             
-            # Отправляем дронов (F)
-            logger.debug("Отправляю дронов (F)...")
+            # Отправляем дронов на атаку (F)
+            logger.info("Отправляю дронов на атаку (F)...")
             press_key('f')
+            random_delay(0.2, 0.3)
             
             return True
         
@@ -350,7 +387,12 @@ def wait_cache_death(sanderling: SanderlingService, timeout: float) -> bool:
         cache_locked = False
         if state.targets:
             for target in state.targets:
-                if target.name and 'Triglavian Bioadaptive Cache' in target.name:
+                name_str = (target.name or "").lower()
+                type_str = (target.type or "").lower()
+                if any(keyword in name_str or keyword in type_str for keyword in [
+                    'bioadaptive cache',
+                    'biocombinative cache'
+                ]):
                     cache_locked = True
                     break
         
@@ -373,7 +415,16 @@ def wait_cache_death(sanderling: SanderlingService, timeout: float) -> bool:
 
 def loot_wreck(sanderling: SanderlingService) -> bool:
     """
-    Залутать врек контейнера.
+    Залутать остов (wreck) контейнера.
+    
+    Порядок действий:
+    1. Найти "Остов" в overview
+    2. Кликнуть по нему
+    3. Дождаться появления кнопки "open_cargo"
+    4. Кликнуть "open_cargo" (Показать содержимое)
+    5. Дождаться открытия окна лута
+    6. Найти кнопку "Взять все"
+    7. Кликнуть "Взять все"
     
     Args:
         sanderling: Сервис Sanderling
@@ -381,37 +432,139 @@ def loot_wreck(sanderling: SanderlingService) -> bool:
     Returns:
         True если успешно
     """
-    state = sanderling.get_state()
-    if not state or not state.overview:
-        logger.error("Нет данных overview")
-        return False
+    logger.info("Ищу остов контейнера...")
     
-    # Найти врек в overview
-    wreck = next((e for e in state.overview if e.name and 'wreck' in e.name.lower()), None)
+    # Попытка 1: Найти остов в overview
+    wreck = None
+    for attempt in range(2):
+        state = sanderling.get_state()
+        if not state or not state.overview:
+            logger.warning(f"Попытка {attempt+1}/2: Нет данных overview")
+            time.sleep(0.7)
+            continue
+        
+        # Ищем "Остов" или "Wreck" в overview
+        for entry in state.overview:
+            name_str = (entry.name or "").lower()
+            type_str = (entry.type or "").lower()
+            
+            if 'остов' in name_str or 'wreck' in name_str or 'wreck' in type_str:
+                wreck = entry
+                logger.info(f"Найден остов: {entry.name}")
+                break
+        
+        if wreck:
+            break
+        
+        logger.warning(f"Попытка {attempt+1}/2: Остов не найден")
+        time.sleep(0.7)
+    
     if not wreck:
-        logger.warning("Врек не найден в overview")
+        logger.error("Остов не найден после 2 попыток")
         return False
     
-    logger.debug(f"Выбираю врек: {wreck.name}")
-    click(wreck.center[0], wreck.center[1])
-    random_delay(0.5, 0.8)
-    
-    # Аппрочим врек
-    state = sanderling.get_state()
-    if state and state.selected_actions:
+    # Попытка 2: Аппрочить остов (чтобы быть в радиусе 2500м)
+    logger.info("Аппрочу остов...")
+    for attempt in range(2):
+        logger.debug(f"Попытка {attempt+1}/2: Кликаю по остову @ {wreck.center}")
+        click(wreck.center[0], wreck.center[1], duration=0.15)
+        
+        # Ждем обновления UI
+        time.sleep(0.7)
+        
+        # Получаем обновленный state с selected_actions
+        state = sanderling.get_state()
+        if not state or not state.selected_actions:
+            logger.warning(f"Попытка {attempt+1}/2: Нет selected_actions")
+            continue
+        
+        # Ищем кнопку "approach"
         approach = next((a for a in state.selected_actions if a.name == 'approach'), None)
-        if approach:
-            logger.debug("Аппрочу врек...")
-            click(approach.center[0], approach.center[1])
-            random_delay(2.0, 3.0)
+        if not approach:
+            logger.warning(f"Попытка {attempt+1}/2: Кнопка 'approach' не найдена")
+            continue
+        
+        # Кликаем "approach"
+        logger.info("Начинаю аппроч к остову...")
+        click(approach.center[0], approach.center[1], duration=0.15)
+        
+        # Небольшая пауза перед открытием карго
+        random_delay(0.3, 0.4)
+        
+        # Успешно начали аппроч
+        break
+    else:
+        logger.warning("Не удалось начать аппроч к остову, пробую открыть карго")
     
-    # TODO: Нажать кнопку лута (когда будет в парсере)
-    # Пока просто ждем и кликаем по вреку еще раз (откроет лут окно)
-    logger.debug("Открываю лут окно...")
-    click(wreck.center[0], wreck.center[1])
-    random_delay(0.5, 1.0)
+    # Попытка 3: Кликнуть по остову и открыть содержимое (10 попыток)
+    for attempt in range(10):
+        logger.debug(f"Попытка {attempt+1}/10: Кликаю по остову @ {wreck.center}")
+        click(wreck.center[0], wreck.center[1], duration=0.15)
+        
+        # Ждем обновления UI (Sanderling с частотой 600 мс)
+        time.sleep(1.2)
+        
+        # Получаем обновленный state с selected_actions
+        state = sanderling.get_state()
+        if not state or not state.selected_actions:
+            logger.warning(f"Попытка {attempt+1}/10: Нет selected_actions")
+            continue
+        
+        # Ищем кнопку "open_cargo" (Показать содержимое)
+        open_cargo = next((a for a in state.selected_actions if a.name == 'open_cargo'), None)
+        if not open_cargo:
+            logger.warning(f"Попытка {attempt+1}/10: Кнопка 'open_cargo' не найдена")
+            continue
+        
+        # Кликаем "open_cargo"
+        logger.info("Открываю содержимое остова...")
+        click(open_cargo.center[0], open_cargo.center[1], duration=0.15)
+        
+        # Ждем открытия окна лута
+        time.sleep(1.2)
+        
+        # Успешно открыли
+        logger.info("Окно лута открыто")
+        break
+    else:
+        logger.error("Не удалось открыть содержимое остова после 10 попыток")
+        return False
     
-    # TODO: Забрать весь лут (Ctrl+Shift+Click или кнопка "Loot All")
+    # Попытка 4: Найти и кликнуть кнопку "Взять все" (5 попыток)
+    for attempt in range(5):
+        logger.debug(f"Попытка {attempt+1}/5: Ищу кнопку 'Взять все'...")
+        
+        # Ждем обновления UI
+        time.sleep(1.2)
+        
+        state = sanderling.get_state()
+        if not state or not state.inventory:
+            logger.warning(f"Попытка {attempt+1}/5: Окно inventory не найдено")
+            continue
+        
+        if not state.inventory.loot_all_button:
+            logger.warning(f"Попытка {attempt+1}/5: Кнопка 'Взять все' не найдена")
+            continue
+        
+        # Кликаем "Взять все"
+        button_coords = state.inventory.loot_all_button
+        logger.info(f"Кликаю 'Взять все' @ {button_coords}")
+        click(button_coords[0], button_coords[1], duration=0.15)
+        
+        # Ждем и проверяем что кнопка исчезла
+        time.sleep(1.2)
+        
+        state = sanderling.get_state()
+        if state and state.inventory and state.inventory.loot_all_button:
+            # Кнопка все еще есть - кликаем еще раз
+            logger.info("Кнопка не исчезла, кликаю еще раз...")
+            click(button_coords[0], button_coords[1], duration=0.15)
+            time.sleep(1.2)
+        
+        logger.info("Лут завершен")
+        return True
     
-    logger.info("Лут завершен")
-    return True
+    logger.error("Не удалось найти кнопку 'Взять все' после 5 попыток")
+    return False
+
+

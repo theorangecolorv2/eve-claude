@@ -1,0 +1,130 @@
+[
+  {
+    "index": 0,
+    "name": "<localized hint=\"Triglavian Extraction Node\">Triglavian Extraction Node*</localized>",
+    "type": "Triglavian Extraction Node",
+    "distance": "45 км",
+    "center": [
+      1371,
+      402
+    ],
+    "bounds": [
+      0,
+      96,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 1,
+    "name": "<localized hint=\"Triglavian Extraction SubNode\">Triglavian Extraction SubNode*</localized>",
+    "type": "Triglavian Extraction SubNode",
+    "distance": "39 км",
+    "center": [
+      1371,
+      378
+    ],
+    "bounds": [
+      0,
+      72,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 2,
+    "name": "<localized hint=\"Triglavian Biocombinative Cache\">Triglavian Biocombinative Cache*</localized>",
+    "type": "Triglavian Biocombinative Cache",
+    "distance": "15 км",
+    "center": [
+      1371,
+      330
+    ],
+    "bounds": [
+      0,
+      24,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 3,
+    "name": "<localized hint=\"Transfer Conduit (Triglavian)\">Transfer Conduit (Triglavian)*</localized>",
+    "type": "Transfer Conduit (Triglavian)",
+    "distance": "20 км",
+    "center": [
+      1371,
+      354
+    ],
+    "bounds": [
+      0,
+      48,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 4,
+    "name": "<localized hint=\"Devoted Knight\">Devoted Knight*</localized>",
+    "type": "Devoted Knight",
+    "distance": "9 567 м",
+    "center": [
+      1371,
+      306
+    ],
+    "bounds": [
+      0,
+      0,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 5,
+    "name": "<localized hint=\"Short-Range Deviant Automata Suppressor\">Подавитель непокорных автоматов ближнего радиуса действия*</localized>",
+    "type": "Short-Range Deviant Automata Suppressor",
+    "distance": "51 км",
+    "center": [
+      1371,
+      450
+    ],
+    "bounds": [
+      0,
+      144,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 6,
+    "name": "<localized hint=\"Medium-Range Deviant Automata Suppressor\">Подавитель непокорных автоматов среднего радиуса действия*</localized>",
+    "type": "Medium-Range Deviant Automata Suppressor",
+    "distance": "49 км",
+    "center": [
+      1371,
+      426
+    ],
+    "bounds": [
+      0,
+      120,
+      438,
+      24
+    ]
+  },
+  {
+    "index": 7,
+    "name": "<localized hint=\"Triglavian Extraction Node\">Triglavian Extraction Node*</localized>",
+    "type": "Triglavian Extraction Node",
+    "distance": "58 км",
+    "center": [
+      1371,
+      474
+    ],
+    "bounds": [
+      0,
+      168,
+      438,
+      24
+    ]
+  }
+]

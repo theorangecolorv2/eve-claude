@@ -15,7 +15,7 @@ def room(sanderling: SanderlingService, timeout: float = 300.0) -> bool:
     Пройти комнату в абиссе (дефолтная логика).
     
     Порядок действий:
-    1. Ждать появления "Triglavian Bioadaptive Cache" в overview
+    1. Ждать появления "Triglavian Cache (Bioadaptive/Biocombinative)" в overview
     2. Обработать контейнер (аппроч, атака, лут)
     
     Args:
@@ -29,7 +29,7 @@ def room(sanderling: SanderlingService, timeout: float = 300.0) -> bool:
     start_time = time.time()
     
     # Ждать появления контейнера в overview
-    logger.info("Ожидание появления Triglavian Bioadaptive Cache...")
+    logger.info("Ожидание появления Triglavian Cache (Bioadaptive/Biocombinative)...")
     cache_entry = _wait_for_cache(sanderling, timeout=60.0)
     if not cache_entry:
         logger.error("Контейнер не появился в overview")
@@ -58,7 +58,7 @@ def room(sanderling: SanderlingService, timeout: float = 300.0) -> bool:
 
 def _wait_for_cache(sanderling: SanderlingService, timeout: float) -> object:
     """
-    Ждать появления Triglavian Bioadaptive Cache в overview.
+    Ждать появления Triglavian Cache (Bioadaptive/Biocombinative) в overview.
     
     Args:
         sanderling: Сервис Sanderling
@@ -68,6 +68,7 @@ def _wait_for_cache(sanderling: SanderlingService, timeout: float) -> object:
         OverviewEntry контейнера или None
     """
     start = time.time()
+    last_log_time = 0
     
     while time.time() - start < timeout:
         state = sanderling.get_state()
@@ -75,11 +76,43 @@ def _wait_for_cache(sanderling: SanderlingService, timeout: float) -> object:
             time.sleep(0.5)
             continue
         
-        # Ищем контейнер по имени
+        # Логируем что видим в overview каждые 10 секунд
+        current_time = time.time()
+        if current_time - last_log_time > 10:
+            logger.info(f"В overview {len(state.overview)} записей:")
+            for entry in state.overview[:5]:  # Первые 5
+                logger.info(f"  - {entry.name} ({entry.type})")
+            if len(state.overview) > 5:
+                logger.info(f"  ... и еще {len(state.overview) - 5}")
+            last_log_time = current_time
+        
+        # Ищем контейнер по имени (проверяем разные варианты)
         for entry in state.overview:
-            if entry.name and 'Triglavian Bioadaptive Cache' in entry.name:
+            if not entry.name:
+                continue
+            
+            name_lower = entry.name.lower()
+            
+            # Проверяем разные варианты названия
+            if any(keyword in name_lower for keyword in [
+                'bioadaptive cache', 'biocombinative cache',
+                'bioadaptive cache',
+                'triglavian cache',
+                'cache'
+            ]):
+                logger.info(f"Найден контейнер: '{entry.name}'")
                 return entry
         
         time.sleep(0.5)
     
+    # Финальный дамп если не нашли
+    logger.error("Контейнер не найден! Финальный дамп overview:")
+    state = sanderling.get_state()
+    if state and state.overview:
+        for entry in state.overview:
+            logger.error(f"  - {entry.name} ({entry.type})")
+    else:
+        logger.error("  Overview пустой!")
+    
     return None
+
