@@ -6,17 +6,20 @@ import time
 from core.sanderling.service import SanderlingService
 from bots.abyss_farmer.cache import process_cache
 from eve.mouse import random_delay
+from eve.combat import recall_drones
+from eve.overview_combat import clear_enemies
 
 logger = logging.getLogger(__name__)
 
 
 def room(sanderling: SanderlingService, timeout: float = 300.0) -> bool:
     """
-    Пройти комнату в абиссе (дефолтная логика).
+    Пройти комнату в абиссе (с боевой логикой).
     
     Порядок действий:
-    1. Ждать появления "Triglavian Cache (Bioadaptive/Biocombinative)" в overview
-    2. Обработать контейнер (аппроч, атака, лут)
+    1. Ждать появления "Triglavian Cache" в overview
+    2. Обработать контейнер (аппроч, атака ракетами, лут)
+    3. Зачистить всех врагов (переключение на PvP Foe, выпуск дронов, лок + убийство)
     
     Args:
         sanderling: Сервис Sanderling
@@ -28,8 +31,8 @@ def room(sanderling: SanderlingService, timeout: float = 300.0) -> bool:
     logger.info("=== НАЧАЛО ПРОХОЖДЕНИЯ КОМНАТЫ ===")
     start_time = time.time()
     
-    # Ждать появления контейнера в overview
-    logger.info("Ожидание появления Triglavian Cache (Bioadaptive/Biocombinative)...")
+    # 1. Ждать появления контейнера в overview
+    logger.info("Ожидание появления Triglavian Cache...")
     cache_entry = _wait_for_cache(sanderling, timeout=60.0)
     if not cache_entry:
         logger.error("Контейнер не появился в overview")
@@ -38,18 +41,41 @@ def room(sanderling: SanderlingService, timeout: float = 300.0) -> bool:
     logger.info(f"Контейнер найден: {cache_entry.name} на {cache_entry.distance}")
     random_delay(0.5, 1.0)
     
-    # Обработать контейнер (аппроч, атака, лут)
-    logger.info("Обработка контейнера...")
+    # 2. Обработать контейнер (аппроч, атака ракетами, лут)
+    logger.info("Обработка контейнера (только ракеты)...")
     if not process_cache(
         sanderling,
         approach_timeout=120.0,
         kill_timeout=60.0,
         attack_distance_km=30.0,
         enable_mwd=True,
-        launch_drones=True
+        launch_drones=False  # Дроны выпустим позже
     ):
         logger.error("Не удалось обработать контейнер")
         return False
+    
+    logger.info("Контейнер обработан!")
+    random_delay(0.3, 0.5)  # Пауза перед зачисткой
+    
+    # 3. Зачистить всех врагов (переключение на PvP Foe + выпуск дронов внутри)
+    logger.info("Зачистка врагов...")
+    killed = clear_enemies(
+        sanderling,
+        guns_key="1",  # Ракеты
+        drones_key="f",  # Дроны атакуют
+        pvp_tab_name="PvP Foe",
+        launch_drones_first=True  # Выпустить дронов перед зачисткой
+    )
+    
+    if killed > 0:
+        logger.info(f"Убито врагов: {killed}")
+    else:
+        logger.warning("Не удалось убить врагов (или их не было)")
+    
+    # 4. Вернуть дронов
+    logger.info("Возвращаю дронов...")
+    recall_drones()
+    random_delay(0.3, 0.5)  # Пауза после возврата
     
     elapsed = time.time() - start_time
     logger.info(f"=== КОМНАТА ПРОЙДЕНА ЗА {elapsed:.1f} СЕК ===")

@@ -146,6 +146,15 @@ from shared.eve.navigation import (
 # Abyss (вход в Бездну)
 from eve.abyss import enter_abyss
 
+# Overview Combat (боевая система для абисса)
+from eve.overview_combat import (
+    switch_to_pvp_tab,
+    get_all_enemies,
+    lock_enemies_batch,
+    kill_locked_batch,
+    clear_enemies,
+)
+
 
 __version__ = "0.3.0"
 

@@ -28,9 +28,34 @@ def launch_drones(hotkey_key: str = "shift+f"):
     Args:
         hotkey_key: Хоткей для запуска (по умолчанию Shift+F)
     """
+    from eve.keyboard import key_down, key_up, press_key
+    from eve.mouse import random_delay
+    
     logger.info(f"Запускаю дронов: {hotkey_key}")
+    
+    # Разбираем хоткей
     keys = hotkey_key.split("+")
-    hotkey(*keys)
+    
+    if len(keys) == 2:
+        # Комбинация типа shift+f
+        modifier = keys[0].strip().lower()
+        main_key = keys[1].strip().lower()
+        
+        # Зажимаем модификатор
+        key_down(modifier)
+        random_delay(0.05, 0.1)
+        
+        # Нажимаем основную клавишу
+        press_key(main_key)
+        random_delay(0.05, 0.1)
+        
+        # Отжимаем модификатор
+        key_up(modifier)
+        random_delay(0.1, 0.15)
+    else:
+        # Простая клавиша
+        press_key(keys[0])
+        random_delay(0.1, 0.15)
 
 
 def engage_drones(hotkey_key: str = "f"):
@@ -55,6 +80,31 @@ def recall_drones(hotkey_key: str = "shift+r"):
     Args:
         hotkey_key: Хоткей для возврата
     """
+    from eve.keyboard import key_down, key_up, press_key
+    from eve.mouse import random_delay
+    
     logger.info(f"Возвращаю дронов: {hotkey_key}")
+    
+    # Разбираем хоткей
     keys = hotkey_key.split("+")
-    hotkey(*keys)
+    
+    if len(keys) == 2:
+        # Комбинация типа shift+r
+        modifier = keys[0].strip().lower()
+        main_key = keys[1].strip().lower()
+        
+        # Зажимаем модификатор
+        key_down(modifier)
+        random_delay(0.05, 0.1)
+        
+        # Нажимаем основную клавишу
+        press_key(main_key)
+        random_delay(0.05, 0.1)
+        
+        # Отжимаем модификатор
+        key_up(modifier)
+        random_delay(0.1, 0.15)
+    else:
+        # Простая клавиша
+        press_key(keys[0])
+        random_delay(0.1, 0.15)
