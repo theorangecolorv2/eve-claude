@@ -115,6 +115,8 @@ CONTEXT_MENU_ACTIONS = {
     'DOCK': 'Dock',
     'JUMP': 'Jump',
     'LOCK_TARGET': 'Lock target',
+    'STACK_ALL': 'Сложить все предметы в стопки',
+    'STACK_ALL_EN': 'Stack All',
 }
 
 # ============================================================================

@@ -1,0 +1,290 @@
+[
+  {
+    "index": 0,
+    "name": "[<font size=12>..RAI]</font><font size=10><color=0xFF7FFF1F><i>Muvolailen - Raan's free port</i> </color></font><br><font size=12><color=0xFFFFB300><u><localized hint=\"Astrahus\">Astrahus*</localized></u> </color></font>",
+    "type": "Astrahus",
+    "distance": null,
+    "center": [
+      1380,
+      255
+    ],
+    "bounds": [
+      0,
+      0,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 1,
+    "name": "[<font size=12>PYCHA]</font><font size=10><color=0xFF7FFF1F><i>Muvolailen - Golden Mom's Forge</i> </color></font><br><font size=12><color=0xFFFFB300><u><localized hint=\"Athanor\">Athanor*</localized></u> </color></font>",
+    "type": "Athanor",
+    "distance": null,
+    "center": [
+      1380,
+      279
+    ],
+    "bounds": [
+      0,
+      24,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 2,
+    "name": "Сборочный комплекс Spacelane Patrol*</localized>",
+    "type": "Caldari Administrative Station",
+    "distance": null,
+    "center": [
+      1380,
+      303
+    ],
+    "bounds": [
+      0,
+      48,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 3,
+    "name": "Сборочный комплекс Spacelane Patrol*</localized>",
+    "type": "Caldari Administrative Station",
+    "distance": "184 609 км",
+    "center": [
+      1380,
+      327
+    ],
+    "bounds": [
+      0,
+      72,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 4,
+    "name": "Фабрика Wiyrkomi Corporation*</localized>",
+    "type": "Caldari Food Processing Plant Station",
+    "distance": null,
+    "center": [
+      1380,
+      351
+    ],
+    "bounds": [
+      0,
+      96,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 5,
+    "name": "Фабрика Rapid Assembly*</localized>",
+    "type": "Caldari Food Processing Plant Station",
+    "distance": null,
+    "center": [
+      1380,
+      375
+    ],
+    "bounds": [
+      0,
+      120,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 6,
+    "name": "Фабрика Caldari Steel*</localized>",
+    "type": "Caldari Food Processing Plant Station",
+    "distance": null,
+    "center": [
+      1380,
+      399
+    ],
+    "bounds": [
+      0,
+      144,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 7,
+    "name": "Перевалочная база CBD Corporation*</localized>",
+    "type": "Caldari Trading Station",
+    "distance": null,
+    "center": [
+      1380,
+      423
+    ],
+    "bounds": [
+      0,
+      168,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 8,
+    "name": "Складской центр Sukuuvestaa Corporation*</localized>",
+    "type": "Caldari Trading Station",
+    "distance": null,
+    "center": [
+      1380,
+      447
+    ],
+    "bounds": [
+      0,
+      192,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 9,
+    "name": "[<font size=12>PYCHA]</font><font size=10><color=0xFF7FFF1F><i>Muvolailen - Golden Mom's Structure Factory</i> </color></font><br><font size=12><color=0xFFFFB300><u><localized hint=\"Raitaru\">Raitaru*</localized></u> </color></font>",
+    "type": "Raitaru",
+    "distance": null,
+    "center": [
+      1380,
+      471
+    ],
+    "bounds": [
+      0,
+      216,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 10,
+    "name": "[<font size=12>PYCHA]</font><font size=10><color=0xFF7FFF1F><i>Muvolailen - Golden Mom's Shipyard II</i> </color></font><br><font size=12><color=0xFFFFB300><u><localized hint=\"Raitaru\">Raitaru*</localized></u> </color></font>",
+    "type": "Raitaru",
+    "distance": null,
+    "center": [
+      1380,
+      495
+    ],
+    "bounds": [
+      0,
+      240,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 11,
+    "name": "[<font size=12>PYCHA]</font><font size=10><color=0xFF7FFF1F><i>Muvolailen - Golden Mom's Shipyard & Factory</i> </color></font><br><font size=12><color=0xFFFFB300><u><localized hint=\"Raitaru\">Raitaru*</localized></u> </color></font>",
+    "type": "Raitaru",
+    "distance": null,
+    "center": [
+      1380,
+      519
+    ],
+    "bounds": [
+      0,
+      264,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 12,
+    "name": "[<font size=12>PYCHA]</font><font size=10><color=0xFF7FFF1F><i>Muvolailen - Golden Mom's Workshop</i> </color></font><br><font size=12><color=0xFFFFB300><u><localized hint=\"Raitaru\">Raitaru*</localized></u> </color></font>",
+    "type": "Raitaru",
+    "distance": null,
+    "center": [
+      1380,
+      543
+    ],
+    "bounds": [
+      0,
+      288,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 13,
+    "name": null,
+    "type": "Stargate (Caldari Region)",
+    "distance": null,
+    "center": [
+      1380,
+      567
+    ],
+    "bounds": [
+      0,
+      312,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 14,
+    "name": null,
+    "type": "Stargate (Caldari Region)",
+    "distance": null,
+    "center": [
+      1380,
+      591
+    ],
+    "bounds": [
+      0,
+      336,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 15,
+    "name": null,
+    "type": "Stargate (Caldari System)",
+    "distance": null,
+    "center": [
+      1380,
+      615
+    ],
+    "bounds": [
+      0,
+      360,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 16,
+    "name": null,
+    "type": "Stargate (Caldari System)",
+    "distance": null,
+    "center": [
+      1380,
+      639
+    ],
+    "bounds": [
+      0,
+      384,
+      420,
+      24
+    ]
+  },
+  {
+    "index": 17,
+    "name": "<localized hint=\"Muvolailen - Star\">Muvolailen - Star*</localized>",
+    "type": "Sun M0 (Orange radiant)",
+    "distance": null,
+    "center": [
+      1380,
+      663
+    ],
+    "bounds": [
+      0,
+      408,
+      420,
+      24
+    ]
+  }
+]

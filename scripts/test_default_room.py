@@ -1,5 +1,5 @@
 """
-Тестовый скрипт для проверки прохождения default room.
+Тестовый скрипт для проверки прохождения Abyss.
 """
 import sys
 import os
@@ -10,11 +10,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.sanderling.service import SanderlingService
-from bots.abyss_farmer.room_new import default_room
-from bots.abyss_farmer.room_tessera import tessera_room
-from bots.abyss_farmer.room_knight import knight_room
-from bots.abyss_farmer.room_overmind import overmind_room
-from bots.abyss_farmer.room_detector import detect_room_type
+from bots.abyss_farmer.main import run_abyss
 
 # Настройка логирования
 logging.basicConfig(
@@ -31,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Главная функция."""
-    logger.info("=== ТЕСТ DEFAULT ROOM ===")
+    logger.info("=== ТЕСТ ABYSS БОТА ===")
     
     # Инициализация Sanderling
     sanderling = SanderlingService()
@@ -54,29 +50,13 @@ def main():
         
         logger.info("Подключение к игре установлено")
         
-        # Определение типа комнаты
-        logger.info("Определение типа комнаты...")
-        room_type = detect_room_type(sanderling, timeout=30.0)
-        logger.info(f"Тип комнаты: {room_type.upper()}")
-        
-        # Запуск прохождения комнаты
-        if room_type == "tessera":
-            logger.info("Запуск прохождения комнаты Tessera...")
-            success = tessera_room(sanderling, timeout=300.0)
-        elif room_type == "knight":
-            logger.info("Запуск прохождения комнаты Knight...")
-            success = knight_room(sanderling, timeout=300.0)
-        elif room_type == "overmind":
-            logger.info("Запуск прохождения комнаты Overmind/Tyrannos...")
-            success = overmind_room(sanderling, timeout=300.0)
-        else:
-            logger.info("Запуск прохождения стандартной комнаты...")
-            success = default_room(sanderling, timeout=300.0)
+        # Запуск прохождения Abyss (3 комнаты)
+        success = run_abyss(sanderling, num_rooms=3)
         
         if success:
-            logger.info("[OK] Комната пройдена успешно!")
+            logger.info("[OK] Abyss пройден успешно!")
         else:
-            logger.error("[FAIL] Не удалось пройти комнату")
+            logger.error("[FAIL] Не удалось пройти Abyss")
         
     except KeyboardInterrupt:
         logger.info("Прервано пользователем")

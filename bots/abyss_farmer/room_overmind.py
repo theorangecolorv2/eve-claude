@@ -12,6 +12,7 @@
 """
 import logging
 import time
+import random
 from typing import Optional
 from core.sanderling.service import SanderlingService
 from core.sanderling.models import OverviewEntry, Target
@@ -120,9 +121,46 @@ def overmind_room(sanderling: SanderlingService, timeout: float = 300.0) -> bool
     if not _loot_wreck(sanderling):
         logger.warning("Не удалось залутать контейнер, продолжаю...")
     
-    # 14. Найти врага в overview/targets и выйти на орбиту 500м
+    # 14. Найти врага в overview (не остов!) и выйти на орбиту 500м
+    logger.info("Шаг 14: Поиск врага для орбиты...")
+    
+    # Переключаемся на Main чтобы найти врага
+    if not _switch_to_tab(sanderling, "Main"):
+        logger.error("Не удалось переключиться на Main")
+        return False
+    
+    random_delay(0.5, 0.8)
+    
+    # Ищем врага (Overmind/Charybdis) в overview, исключая остов
+    state = sanderling.get_state()
+    if not state or not state.overview:
+        logger.error("Нет данных overview")
+        return False
+    
+    enemy_for_orbit = None
+    for entry in state.overview:
+        if not entry.name:
+            continue
+        
+        name_lower = entry.name.lower()
+        type_lower = (entry.type or "").lower()
+        
+        # Пропускаем остов
+        if 'остов' in name_lower or 'wreck' in name_lower or 'wreck' in type_lower:
+            continue
+        
+        # Ищем Overmind или Charybdis
+        if 'overmind' in name_lower or 'charybdis' in name_lower or 'tyrannos' in name_lower:
+            enemy_for_orbit = entry
+            logger.info(f"Найден враг для орбиты: {entry.name}")
+            break
+    
+    if not enemy_for_orbit:
+        logger.error("Враг для орбиты не найден")
+        return False
+    
     logger.info("Шаг 14: Орбита врага 500м...")
-    if not _orbit_enemy_500m(sanderling, enemy):
+    if not _orbit_enemy_500m(sanderling, enemy_for_orbit):
         logger.error("Не удалось выйти на орбиту врага")
         return False
     
@@ -410,8 +448,8 @@ def _kill_enemy_with_periodic_f(sanderling: SanderlingService, enemy_name: str) 
     """
     start = time.time()
     last_f_press = start
-    kill_timeout = 180.0  # 3 минуты
-    f_interval = 15.0  # Дублируем F каждые 15 секунд
+    kill_timeout = 220.0  # 220 секунд для Overmind/Tyrannos
+    f_interval = random.uniform(25.0, 45.0)  # Дублируем F каждые 25-45 секунд
     
     while time.time() - start < kill_timeout:
         # Проверяем жив ли враг (есть ли он в targets)
@@ -439,12 +477,13 @@ def _kill_enemy_with_periodic_f(sanderling: SanderlingService, enemy_name: str) 
             logger.info(f"Враг убит за {elapsed:.1f}с")
             return True
         
-        # Дублируем команду F каждые 15 секунд
+        # Дублируем команду F каждые 25-45 секунд
         current_time = time.time()
         if current_time - last_f_press >= f_interval:
             logger.debug("Дублирую команду F...")
             press_key('f')
             last_f_press = current_time
+            f_interval = random.uniform(25.0, 45.0)  # Новый случайный интервал
         
         time.sleep(1.0)
     

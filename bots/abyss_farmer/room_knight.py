@@ -13,6 +13,7 @@
 """
 import logging
 import time
+import random
 from typing import Optional
 from core.sanderling.service import SanderlingService
 from core.sanderling.models import OverviewEntry
@@ -445,7 +446,7 @@ def _lock_target(sanderling: SanderlingService, target: OverviewEntry) -> bool:
     
     # Ждем появления в targets
     logger.debug("Жду появления цели в targets...")
-    random_delay(2.8, 3.3)
+    random_delay(3.5, 4.0)  # Увеличено с 2.8-3.3 до 3.5-4.0
     
     return True
 
@@ -468,8 +469,8 @@ def _kill_with_drones_only(sanderling: SanderlingService, target_name: str) -> b
     
     start = time.time()
     last_f_press = start
-    kill_timeout = 180.0  # 3 минуты
-    f_interval = 15.0  # Дублируем F каждые 15 секунд
+    kill_timeout = 220.0  # 220 секунд
+    f_interval = random.uniform(25.0, 45.0)  # Дублируем F каждые 25-45 секунд
     
     while time.time() - start < kill_timeout:
         # Проверяем жива ли цель
@@ -477,14 +478,30 @@ def _kill_with_drones_only(sanderling: SanderlingService, target_name: str) -> b
         if not state or not state.targets or len(state.targets) == 0:
             elapsed = time.time() - start
             logger.info(f"Цель убита за {elapsed:.1f}с")
+            
+            # Если убита слишком быстро (< 5 сек) - перепроверяем
+            if elapsed < 5.0:
+                logger.warning(f"Цель убита слишком быстро ({elapsed:.1f}с), перепроверяю...")
+                time.sleep(2.0)
+                
+                # Проверяем еще раз
+                state = sanderling.get_state()
+                if state and state.targets and len(state.targets) > 0:
+                    logger.info("Цель все еще жива, продолжаю атаку...")
+                    continue
+                else:
+                    logger.info("Подтверждено: цель мертва")
+                    return True
+            
             return True
         
-        # Дублируем команду F каждые 15 секунд
+        # Дублируем команду F каждые 25-45 секунд
         current_time = time.time()
         if current_time - last_f_press >= f_interval:
             logger.debug("Дублирую команду F...")
             press_key('f')
             last_f_press = current_time
+            f_interval = random.uniform(25.0, 45.0)  # Новый случайный интервал
         
         time.sleep(1.0)
     

@@ -156,6 +156,15 @@ class DronesState:
 
 
 @dataclass
+class Bookmark:
+    """Букмарк (локация)."""
+    name: str  # Название букмарка (например, "1 SPOT 1", "2 SPOT 2", "3 HOME 3")
+    hint: Optional[str] = None  # Подсказка (полное название)
+    center: Optional[Tuple[int, int]] = None  # АБСОЛЮТНЫЕ координаты для клика
+    bounds: Optional[Tuple[int, int, int, int]] = None  # x, y, width, height (абсолютные)
+
+
+@dataclass
 class GameState:
     """Состояние игры из UI tree."""
     targets: List[Target] = field(default_factory=list)
@@ -167,6 +176,8 @@ class GameState:
     inventory: Optional[InventoryWindow] = None
     context_menu: Optional[ContextMenu] = None
     drones: Optional[DronesState] = None
+    bookmarks: List[Bookmark] = field(default_factory=list)
+    ui_tree: Optional[dict] = None  # Сырое UI tree для дополнительного парсинга
     timestamp: float = 0.0
     is_valid: bool = True
     warnings: List[str] = field(default_factory=list)

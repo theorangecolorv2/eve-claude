@@ -79,6 +79,9 @@ class UITreeParser:
         # Парсинг дронов
         drones = self._parse_drones(ui_tree)
         
+        # Парсинг букмарков (локаций)
+        bookmarks = self._parse_bookmarks(ui_tree)
+        
         # Создание состояния
         state = GameState(
             targets=targets,
@@ -90,6 +93,8 @@ class UITreeParser:
             inventory=inventory,
             context_menu=context_menu,
             drones=drones,
+            bookmarks=bookmarks,
+            ui_tree=ui_tree,  # Сохраняем сырое дерево для дополнительного парсинга
             timestamp=time.time(),
             is_valid=len(warnings) == 0,
             warnings=warnings
@@ -1364,8 +1369,18 @@ class UITreeParser:
             text = dict_entries.get('_setText', '')
             hint = dict_entries.get('_hint', '')
             
-            # Если есть текст с названием предмета
-            if text and isinstance(text, str) and ('Filament' in text or 'filament' in text.lower()):
+            # ВАЖНО: Пропускаем WindowCaption - это заголовок окна, а не предмет
+            # Ищем только узлы внутри InvItem
+            is_in_inv_item = False
+            is_window_caption = False
+            for p in path:
+                if p.get('pythonObjectTypeName') == 'InvItem':
+                    is_in_inv_item = True
+                if p.get('pythonObjectTypeName') == 'WindowCaption':
+                    is_window_caption = True
+            
+            # Если есть текст с названием предмета и это НЕ заголовок окна
+            if text and isinstance(text, str) and ('Filament' in text or 'filament' in text.lower()) and not is_window_caption and is_in_inv_item:
                 # Извлечь АБСОЛЮТНЫЕ координаты
                 item_center = self._extract_absolute_coordinates(path)
                 if not item_center:
@@ -1443,8 +1458,8 @@ class UITreeParser:
             return False
         
         # Ищем Checkbox с checked=True
-        dict_entries = node.get('dictEntriesOfInterest', {})
-        if dict_entries.get('pythonObjectTypeName') == 'Checkbox':
+        if node.get('pythonObjectTypeName') == 'Checkbox':
+            dict_entries = node.get('dictEntriesOfInterest', {})
             return dict_entries.get('checked', False)
         
         # Рекурсия в children
@@ -1767,3 +1782,106 @@ class UITreeParser:
                     pass
         
         return (shield, armor, hull)
+
+    
+    def _parse_bookmarks(self, node: dict) -> List['Bookmark']:
+        """
+        Извлечь букмарки (локации) из UI tree.
+        
+        Args:
+            node: Корневой узел UI tree
+            
+        Returns:
+            Список букмарков
+        """
+        from .models import Bookmark
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        bookmarks = []
+        
+        # Найти все PlaceEntry узлы
+        place_entry_paths = self._find_nodes_with_path(node, 'PlaceEntry')
+        
+        for path in place_entry_paths:
+            bookmark = self._parse_bookmark_entry(path)
+            if bookmark:
+                bookmarks.append(bookmark)
+        
+        return bookmarks
+    
+    def _parse_bookmark_entry(self, path: List[dict]) -> Optional['Bookmark']:
+        """
+        Распарсить запись букмарка (PlaceEntry).
+        
+        Args:
+            path: Путь к узлу букмарка
+            
+        Returns:
+            Bookmark или None
+        """
+        from .models import Bookmark
+        import re
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        entry_node = path[-1]
+        dict_entries = entry_node.get('dictEntriesOfInterest', {})
+        
+        # Извлечь имя букмарка
+        # Может быть в _hint или _setText
+        name = dict_entries.get('_hint', '')
+        if not name:
+            text = dict_entries.get('_setText', '')
+            if text:
+                # Текст вида "1 SPOT 1<t>По умолчанию<t>-"
+                # Берем первую часть до <t>
+                name = text.split('<t>')[0].strip()
+        
+        # Если не нашли в dict_entries, ищем в children
+        if not name:
+            # Найти EveLabelMedium узлы внутри PlaceEntry
+            labels = self._find_nodes_by_type(entry_node, 'EveLabelMedium')
+            
+            for label in labels:
+                label_dict = label.get('dictEntriesOfInterest', {})
+                text = label_dict.get('_setText', '')
+                if text:
+                    # Текст вида "1 SPOT 1<t>По умолчанию<t>-"
+                    name = text.split('<t>')[0].strip()
+                    break
+        
+        if not name:
+            return None
+        
+        # Извлечь АБСОЛЮТНЫЕ координаты
+        center = self._extract_absolute_coordinates(path)
+        
+        if not center:
+            return None
+        
+        # Извлечь размеры
+        width = dict_entries.get('_displayWidth', 236)
+        height = dict_entries.get('_displayHeight', 25)
+        
+        if isinstance(width, dict) and 'int_low32' in width:
+            width = width['int_low32']
+        if isinstance(height, dict) and 'int_low32' in height:
+            height = height['int_low32']
+        
+        entry_x = center[0]
+        entry_y = center[1]
+        entry_bounds = (entry_x, entry_y, int(width), int(height))
+        entry_center = (entry_x + int(width)//2, entry_y + int(height)//2)
+        
+        # Извлечь hint (полное название)
+        hint = dict_entries.get('_hint', None)
+        
+        return Bookmark(
+            name=name,
+            hint=hint,
+            center=entry_center,
+            bounds=entry_bounds
+        )

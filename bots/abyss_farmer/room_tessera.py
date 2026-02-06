@@ -13,6 +13,7 @@
 """
 import logging
 import time
+import random
 from typing import Optional, Dict
 from core.sanderling.service import SanderlingService
 from core.sanderling.models import OverviewEntry
@@ -486,8 +487,10 @@ def _kill_with_drone_monitoring(sanderling: SanderlingService, target_name: str)
     
     # Шаг 3: Мониторинг здоровья дронов и ожидание смерти цели
     start = time.time()
-    kill_timeout = 180.0  # 3 минуты на убийство
+    kill_timeout = 220.0  # 220 секунд на убийство
     check_interval = 1.0  # Проверяем каждую секунду
+    last_f_press = start
+    f_interval = random.uniform(25.0, 45.0)  # Дублируем F каждые 25-45 секунд
     
     while time.time() - start < kill_timeout:
         # Проверяем жива ли цель
@@ -496,6 +499,14 @@ def _kill_with_drone_monitoring(sanderling: SanderlingService, target_name: str)
             elapsed = time.time() - start
             logger.info(f"Цель убита за {elapsed:.1f}с")
             return True
+        
+        # Дублируем команду F каждые 25-45 секунд
+        current_time = time.time()
+        if current_time - last_f_press >= f_interval:
+            logger.debug("Дублирую команду F...")
+            press_key('f')
+            last_f_press = current_time
+            f_interval = random.uniform(25.0, 45.0)  # Новый случайный интервал
         
         # Проверяем здоровье дронов
         current_health = _get_drones_health(sanderling)
@@ -529,8 +540,9 @@ def _kill_with_drone_monitoring(sanderling: SanderlingService, target_name: str)
                 press_key('f')
                 random_delay(0.5, 0.8)
                 
-                # Обновляем начальное здоровье
+                # Обновляем начальное здоровье и время последнего F
                 initial_health = _get_drones_health(sanderling)
+                last_f_press = time.time()
                 logger.debug(f"Обновленное здоровье дронов: {initial_health}")
         
         time.sleep(check_interval)

@@ -22,5 +22,11 @@
     "process_id": 7556,
     "timestamp": 1770327054.7973475,
     "game_version": null
+  },
+  "2028": {
+    "root_address": "0x1FA58F93E80",
+    "process_id": 2028,
+    "timestamp": 1770377402.2140765,
+    "game_version": null
   }
 }

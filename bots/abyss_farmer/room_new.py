@@ -455,7 +455,7 @@ def _kill_first_enemy_in_range(
     # Шаг 5: Ждать смерти (исчезновение из targets)
     logger.info("Жду смерти цели...")
     start = time.time()
-    kill_timeout = 60.0
+    kill_timeout = 95.0  # 95 секунд
     
     while time.time() - start < kill_timeout:
         state = sanderling.get_state()
@@ -507,6 +507,11 @@ def _kill_and_loot_cache(sanderling: SanderlingService) -> bool:
         if not _loot_wreck_direct(sanderling, cache_entry):
             logger.warning("Не удалось залутать остов, продолжаю...")
         return True
+    
+    # Шаг 2.5: Проверить что остов не залочен
+    logger.info("Проверяю залоченные цели...")
+    if not _unlock_wreck_if_locked(sanderling):
+        logger.warning("Не удалось разлочить остов, продолжаю...")
     
     # Шаг 3: Залочить контейнер (Ctrl+Click)
     logger.info("Лочу контейнер...")
@@ -713,7 +718,7 @@ def _clear_all_enemies(sanderling: SanderlingService) -> int:
             # Ждем смерти (уменьшение количества targets)
             current_targets = len(state.targets)
             start = time.time()
-            kill_timeout = 60.0
+            kill_timeout = 95.0  # 95 секунд
             
             while time.time() - start < kill_timeout:
                 state = sanderling.get_state()
@@ -1013,6 +1018,7 @@ def _recall_drones(sanderling: SanderlingService) -> bool:
 def _jump_through_gate(sanderling: SanderlingService) -> bool:
     """
     Найти ворота и прыгнуть через них (Jump).
+    Ждет исчезновения остова (подтверждение прыжка).
     
     Args:
         sanderling: Сервис Sanderling
@@ -1057,8 +1063,60 @@ def _jump_through_gate(sanderling: SanderlingService) -> bool:
     click(jump_action.center[0], jump_action.center[1], duration=0.18)
     random_delay(1.0, 1.5)
     
-    logger.info("Прыжок инициирован")
+    # Шаг 5: Ждать исчезновения остова (подтверждение прыжка)
+    logger.info("Ожидание исчезновения остова (подтверждение прыжка)...")
+    if not _wait_for_wreck_disappear(sanderling, timeout=15.0):
+        logger.warning("Остов не исчез, но продолжаем")
+    
+    # Шаг 6: Ждать прогрузки новой комнаты
+    logger.info("Ожидание прогрузки новой комнаты...")
+    random_delay(3.0, 4.0)
+    
+    logger.info("Прыжок завершен")
     return True
+
+
+def _wait_for_wreck_disappear(sanderling: SanderlingService, timeout: float) -> bool:
+    """
+    Ждать пока остов исчезнет из overview.
+    
+    Args:
+        sanderling: Сервис Sanderling
+        timeout: Таймаут ожидания (сек)
+        
+    Returns:
+        True если остов исчез
+    """
+    start = time.time()
+    
+    while time.time() - start < timeout:
+        state = sanderling.get_state()
+        if not state or not state.overview:
+            time.sleep(0.5)
+            continue
+        
+        # Ищем остов в overview
+        wreck_found = False
+        for entry in state.overview:
+            if not entry.name:
+                continue
+            
+            name_lower = entry.name.lower()
+            type_lower = (entry.type or "").lower()
+            
+            if 'остов' in name_lower or 'wreck' in name_lower or 'wreck' in type_lower:
+                wreck_found = True
+                break
+        
+        # Если остова нет - прыгнули
+        if not wreck_found:
+            logger.info("Остов исчез - прыжок подтвержден")
+            return True
+        
+        time.sleep(0.5)
+    
+    logger.warning(f"Остов не исчез за {timeout} секунд")
+    return False
 
 
 
@@ -1089,12 +1147,29 @@ def _ensure_all_enemies_cleared(sanderling: SanderlingService) -> bool:
             logger.info("Нет врагов в overview - зачистка завершена")
             return True
         
-        enemies_count = len(state.overview)
+        # Фильтруем только реальных врагов (исключаем cache, gate, conduit, wreck, остов)
+        actual_enemies = []
+        for entry in state.overview:
+            if not entry.name:
+                continue
+            
+            name_lower = entry.name.lower()
+            # Исключаем не-врагов
+            if any(keyword in name_lower for keyword in ['cache', 'gate', 'conduit', 'wreck', 'остов']):
+                continue
+            
+            actual_enemies.append(entry)
+        
+        if len(actual_enemies) == 0:
+            logger.info("Нет реальных врагов в overview - зачистка завершена")
+            return True
+        
+        enemies_count = len(actual_enemies)
         logger.info(f"Обнаружено врагов в overview: {enemies_count}")
         
         # Проверяем дистанцию до ближайшего врага
         min_distance_km = None
-        for entry in state.overview:
+        for entry in actual_enemies:
             if not entry.distance:
                 continue
             
@@ -1130,9 +1205,21 @@ def _ensure_all_enemies_cleared(sanderling: SanderlingService) -> bool:
                     time.sleep(1.0)
                     continue
                 
-                # Проверяем дистанцию
+                # Проверяем есть ли вообще враги
+                enemies_found = False
                 closest_distance = None
+                
                 for entry in state.overview:
+                    if not entry.name:
+                        continue
+                    
+                    # Это враг?
+                    name_lower = entry.name.lower()
+                    if any(keyword in name_lower for keyword in ['cache', 'gate', 'conduit', 'wreck', 'остов']):
+                        continue
+                    
+                    enemies_found = True
+                    
                     if not entry.distance:
                         continue
                     
@@ -1142,6 +1229,11 @@ def _ensure_all_enemies_cleared(sanderling: SanderlingService) -> bool:
                     
                     if closest_distance is None or distance_km < closest_distance:
                         closest_distance = distance_km
+                
+                # Если врагов нет - выходим
+                if not enemies_found:
+                    logger.info("Враги исчезли (убиты пока дроны возвращались)")
+                    return True
                 
                 if closest_distance and closest_distance <= 35.0:
                     logger.info(f"Враг подлетел: {closest_distance:.1f} км")
@@ -1224,6 +1316,7 @@ def _loot_wreck_direct(sanderling: SanderlingService, wreck_entry: OverviewEntry
     
     # Шаг 3: Открыть карго (врек уже выбран после approach)
     logger.info("Открываю карго врека...")
+    open_cargo_action = None
     for attempt in range(10):
         random_delay(0.5, 0.8)
         
@@ -1237,15 +1330,16 @@ def _loot_wreck_direct(sanderling: SanderlingService, wreck_entry: OverviewEntry
         
         logger.info("Кликаю open_cargo...")
         click(open_cargo.center[0], open_cargo.center[1], duration=0.18)
+        open_cargo_action = open_cargo  # Сохраняем для повторного использования
         random_delay(1.2, 1.5)
         break
     else:
         logger.error("Не удалось открыть карго врека")
         return False
     
-    # Шаг 4: Ждать кнопки "Взять все"
-    logger.info("Жду кнопки 'Взять все'...")
-    for attempt in range(20):
+    # Шаг 4: Ждать кнопки "Взять все" (45 секунд)
+    logger.info("Жду кнопки 'Взять все' (до 45 секунд)...")
+    for attempt in range(37):  # 37 × 1.2с ≈ 45 секунд
         random_delay(1.2, 1.5)
         
         state = sanderling.get_state()
@@ -1260,5 +1354,155 @@ def _loot_wreck_direct(sanderling: SanderlingService, wreck_entry: OverviewEntry
         logger.info("Лут завершен")
         return True
     
-    logger.warning("Не удалось найти кнопку 'Взять все' за 25 секунд, продолжаю...")
+    # Шаг 5: Если не появилось за 45 секунд - повторно открыть карго
+    logger.warning("Кнопка 'Взять все' не появилась за 45 секунд, повторно открываю карго...")
+    
+    # Кликаем по вреку снова
+    click(wreck_entry.center[0], wreck_entry.center[1], duration=0.18)
+    random_delay(0.5, 0.8)
+    
+    # Открываем карго снова
+    for attempt in range(10):
+        random_delay(0.5, 0.8)
+        
+        state = sanderling.get_state()
+        if not state or not state.selected_actions:
+            continue
+        
+        open_cargo = next((a for a in state.selected_actions if a.name == 'open_cargo'), None)
+        if not open_cargo:
+            continue
+        
+        logger.info("Повторно кликаю open_cargo...")
+        click(open_cargo.center[0], open_cargo.center[1], duration=0.18)
+        random_delay(1.2, 1.5)
+        break
+    
+    # Шаг 6: Ждать кнопки "Взять все" еще 15 секунд
+    logger.info("Жду кнопки 'Взять все' (еще 15 секунд)...")
+    for attempt in range(12):  # 12 × 1.2с ≈ 15 секунд
+        random_delay(1.2, 1.5)
+        
+        state = sanderling.get_state()
+        if not state or not state.inventory or not state.inventory.loot_all_button:
+            continue
+        
+        button_coords = state.inventory.loot_all_button
+        logger.info(f"Кликаю 'Взять все' @ {button_coords}")
+        click(button_coords[0], button_coords[1], duration=0.18)
+        random_delay(1.2, 1.5)
+        
+        logger.info("Лут завершен")
+        return True
+    
+    logger.warning("Не удалось найти кнопку 'Взять все' за 60 секунд, продолжаю...")
+    return True
+
+
+
+def _unlock_wreck_if_locked(sanderling: SanderlingService) -> bool:
+    """
+    Проверить залоченные цели и разлочить остов если он залочен.
+    
+    Args:
+        sanderling: Сервис Sanderling
+        
+    Returns:
+        True если успешно или остов не залочен
+    """
+    state = sanderling.get_state()
+    if not state or not state.targets:
+        logger.debug("Нет залоченных целей")
+        return True
+    
+    # Ищем остов в targets
+    wreck_target = None
+    for target in state.targets:
+        if not target.name:
+            continue
+        
+        name_lower = target.name.lower()
+        type_lower = (target.type or "").lower()
+        
+        if 'остов' in name_lower or 'wreck' in name_lower or 'wreck' in type_lower:
+            wreck_target = target
+            logger.info(f"Обнаружен залоченный остов: {target.name}")
+            break
+    
+    if not wreck_target:
+        logger.debug("Остов не залочен")
+        return True
+    
+    # Переключаемся на Main чтобы найти остов в overview
+    if not _switch_to_tab(sanderling, "Main"):
+        logger.error("Не удалось переключиться на Main")
+        return False
+    
+    random_delay(0.5, 0.8)
+    
+    # Ищем остов в overview
+    state = sanderling.get_state()
+    if not state or not state.overview:
+        logger.error("Нет данных overview")
+        return False
+    
+    wreck_entry = None
+    for entry in state.overview:
+        if not entry.name:
+            continue
+        
+        name_lower = entry.name.lower()
+        type_lower = (entry.type or "").lower()
+        
+        if 'остов' in name_lower or 'wreck' in name_lower or 'wreck' in type_lower:
+            wreck_entry = entry
+            break
+    
+    if not wreck_entry:
+        logger.error("Остов не найден в overview")
+        return False
+    
+    # Кликаем ПКМ по остову
+    logger.info("Кликаю ПКМ по остову...")
+    from eve.mouse import right_click
+    right_click(wreck_entry.center[0], wreck_entry.center[1])
+    random_delay(1.5, 2.0)
+    
+    # Ищем пункт "Снять захват" в контекстном меню
+    state = sanderling.get_state()
+    if not state or not state.context_menu:
+        logger.error("Контекстное меню не открылось")
+        return False
+    
+    if not state.context_menu.is_open:
+        logger.error("Контекстное меню не открыто")
+        return False
+    
+    menu_items = state.context_menu.items if hasattr(state.context_menu, 'items') else []
+    
+    unlock_item = None
+    for item in menu_items:
+        if not item.text:
+            continue
+        
+        text_lower = item.text.lower()
+        
+        # Ищем "Снять захват" или "Unlock"
+        if 'снять' in text_lower and 'захват' in text_lower:
+            unlock_item = item
+            break
+        elif 'unlock' in text_lower:
+            unlock_item = item
+            break
+    
+    if not unlock_item:
+        logger.error(f"Пункт 'Снять захват' не найден. Доступные: {[item.text for item in menu_items]}")
+        return False
+    
+    # Кликаем "Снять захват"
+    logger.info(f"Кликаю 'Снять захват' @ {unlock_item.center}")
+    click(unlock_item.center[0], unlock_item.center[1], duration=0.225)
+    random_delay(0.5, 0.8)
+    
+    logger.info("Остов разлочен")
     return True
