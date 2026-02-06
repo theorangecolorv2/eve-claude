@@ -167,7 +167,7 @@ def approach_cache(sanderling: SanderlingService, cache_entry: object) -> bool:
         return False
     
     logger.debug(f"Кликаю по контейнеру @ {cache_entry.center}")
-    click(cache_entry.center[0], cache_entry.center[1], duration=0.15)
+    click(cache_entry.center[0], cache_entry.center[1], duration=0.18)
     random_delay(0.5, 0.8)  # Даем время Sanderling обновиться
     
     # Ждем пока появятся selected actions (до 3 секунд)
@@ -185,7 +185,7 @@ def approach_cache(sanderling: SanderlingService, cache_entry: object) -> bool:
         return False
     
     logger.debug(f"Кликаю 'approach' @ {approach_action.center}")
-    click(approach_action.center[0], approach_action.center[1], duration=0.15)
+    click(approach_action.center[0], approach_action.center[1], duration=0.18)
     
     return True
 
@@ -304,7 +304,7 @@ def wait_and_attack(
             logger.debug("Лочу контейнер (Ctrl+Click)...")
             key_down('ctrl')
             random_delay(0.05, 0.1)
-            click(cache.center[0], cache.center[1], duration=0.1)
+            click(cache.center[0], cache.center[1], duration=0.12)  # Быстрый клик для лока
             random_delay(0.05, 0.1)
             key_up('ctrl')
             
@@ -467,7 +467,7 @@ def loot_wreck(sanderling: SanderlingService) -> bool:
     logger.info("Аппрочу остов...")
     for attempt in range(2):
         logger.debug(f"Попытка {attempt+1}/2: Кликаю по остову @ {wreck.center}")
-        click(wreck.center[0], wreck.center[1], duration=0.15)
+        click(wreck.center[0], wreck.center[1], duration=0.18)
         
         # Ждем обновления UI
         time.sleep(0.7)
@@ -486,7 +486,7 @@ def loot_wreck(sanderling: SanderlingService) -> bool:
         
         # Кликаем "approach"
         logger.info("Начинаю аппроч к остову...")
-        click(approach.center[0], approach.center[1], duration=0.15)
+        click(approach.center[0], approach.center[1], duration=0.18)
         
         # Небольшая пауза перед открытием карго
         random_delay(0.3, 0.4)
@@ -499,7 +499,7 @@ def loot_wreck(sanderling: SanderlingService) -> bool:
     # Попытка 3: Кликнуть по остову и открыть содержимое (10 попыток)
     for attempt in range(10):
         logger.debug(f"Попытка {attempt+1}/10: Кликаю по остову @ {wreck.center}")
-        click(wreck.center[0], wreck.center[1], duration=0.15)
+        click(wreck.center[0], wreck.center[1], duration=0.18)
         
         # Ждем обновления UI (Sanderling с частотой 600 мс)
         time.sleep(1.2)
@@ -518,7 +518,7 @@ def loot_wreck(sanderling: SanderlingService) -> bool:
         
         # Кликаем "open_cargo"
         logger.info("Открываю содержимое остова...")
-        click(open_cargo.center[0], open_cargo.center[1], duration=0.15)
+        click(open_cargo.center[0], open_cargo.center[1], duration=0.18)
         
         # Ждем открытия окна лута
         time.sleep(1.2)
@@ -549,7 +549,7 @@ def loot_wreck(sanderling: SanderlingService) -> bool:
         # Кликаем "Взять все"
         button_coords = state.inventory.loot_all_button
         logger.info(f"Кликаю 'Взять все' @ {button_coords}")
-        click(button_coords[0], button_coords[1], duration=0.15)
+        click(button_coords[0], button_coords[1], duration=0.18)
         
         # Ждем и проверяем что кнопка исчезла
         time.sleep(1.2)
@@ -558,7 +558,7 @@ def loot_wreck(sanderling: SanderlingService) -> bool:
         if state and state.inventory and state.inventory.loot_all_button:
             # Кнопка все еще есть - кликаем еще раз
             logger.info("Кнопка не исчезла, кликаю еще раз...")
-            click(button_coords[0], button_coords[1], duration=0.15)
+            click(button_coords[0], button_coords[1], duration=0.18)
             time.sleep(1.2)
         
         logger.info("Лут завершен")

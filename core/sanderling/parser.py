@@ -76,6 +76,9 @@ class UITreeParser:
         # Парсинг контекстного меню
         context_menu = self._parse_context_menu(ui_tree)
         
+        # Парсинг дронов
+        drones = self._parse_drones(ui_tree)
+        
         # Создание состояния
         state = GameState(
             targets=targets,
@@ -86,6 +89,7 @@ class UITreeParser:
             neocom_buttons=neocom_buttons,
             inventory=inventory,
             context_menu=context_menu,
+            drones=drones,
             timestamp=time.time(),
             is_valid=len(warnings) == 0,
             warnings=warnings
@@ -1530,3 +1534,236 @@ class UITreeParser:
             is_open=True,
             items=menu_items
         )
+
+    
+    def _parse_drones(self, node: dict) -> Optional['DronesState']:
+        """
+        Извлечь состояние дронов.
+        
+        Args:
+            node: Корневой узел UI tree
+            
+        Returns:
+            DronesState или None если окно дронов закрыто
+        """
+        from .models import DronesState, Drone
+        import re
+        
+        # Найти DronesWindow
+        drones_window_nodes = self._find_nodes_by_type(node, 'DronesWindow')
+        if not drones_window_nodes:
+            return None
+        
+        drones_window = drones_window_nodes[0]
+        
+        # Найти DroneGroupHeaderInSpace для получения количества дронов
+        header_nodes = self._find_nodes_by_type(drones_window, 'DroneGroupHeaderInSpace')
+        
+        in_space_count = 0
+        max_drones = 5
+        
+        if header_nodes:
+            header = header_nodes[0]
+            # Ищем текст вида "Drones in Space (2/5)"
+            text_nodes = self._find_nodes_by_type(header, 'EveLabelMedium')
+            if not text_nodes:
+                text_nodes = self._find_nodes_by_type(header, 'EveLabelSmall')
+            
+            for text_node in text_nodes:
+                dict_entries = text_node.get('dictEntriesOfInterest', {})
+                text = dict_entries.get('_setText', '') or dict_entries.get('_text', '')
+                
+                if text and '(' in text and ')' in text:
+                    # Извлечь числа из "Drones in Space (2/5)"
+                    match = re.search(r'\((\d+)/(\d+)\)', text)
+                    if match:
+                        in_space_count = int(match.group(1))
+                        max_drones = int(match.group(2))
+                        break
+        
+        # Парсим дроны в космосе
+        drones_in_space = []
+        space_entry_paths = self._find_nodes_with_path(drones_window, 'DroneInSpaceEntry')
+        
+        for path in space_entry_paths:
+            drone = self._parse_drone_entry(path)
+            if drone:
+                drones_in_space.append(drone)
+        
+        # Парсим дроны в отсеке
+        drones_in_bay = []
+        bay_entry_paths = self._find_nodes_with_path(drones_window, 'DroneInBayEntry')
+        
+        for path in bay_entry_paths:
+            drone = self._parse_drone_entry(path)
+            if drone:
+                drones_in_bay.append(drone)
+        
+        return DronesState(
+            drones_in_space=drones_in_space,
+            drones_in_bay=drones_in_bay,
+            in_space_count=in_space_count,
+            max_drones=max_drones,
+            window_open=True
+        )
+    
+    def _parse_drone_entry(self, path: List[dict]) -> Optional['Drone']:
+        """
+        Распарсить запись дрона (DroneInSpaceEntry или DroneInBayEntry).
+        
+        Args:
+            path: Путь к узлу дрона
+            
+        Returns:
+            Drone или None
+        """
+        from .models import Drone
+        import re
+        
+        entry_node = path[-1]
+        
+        # Извлечь АБСОЛЮТНЫЕ координаты
+        center = self._extract_absolute_coordinates(path)
+        if not center:
+            return None
+        
+        # Извлечь размеры
+        dict_entries = entry_node.get('dictEntriesOfInterest', {})
+        width = dict_entries.get('_displayWidth', 346)
+        height = dict_entries.get('_displayHeight', 24)
+        
+        if isinstance(width, dict) and 'int_low32' in width:
+            width = width['int_low32']
+        if isinstance(height, dict) and 'int_low32' in height:
+            height = height['int_low32']
+        
+        entry_x = center[0]
+        entry_y = center[1]
+        entry_bounds = (entry_x, entry_y, int(width), int(height))
+        entry_center = (entry_x + int(width)//2, entry_y + int(height)//2)
+        
+        # Найти TextBody с именем и состоянием
+        text_bodies = self._find_nodes_by_type(entry_node, 'TextBody')
+        
+        name = None
+        state = "Idle"  # По умолчанию
+        
+        for text_body in text_bodies:
+            text_dict = text_body.get('dictEntriesOfInterest', {})
+            text = text_dict.get('_setText', '')
+            
+            if text and 'Hornet' in text or 'Wasp' in text or 'Valkyrie' in text or 'Warrior' in text or 'Acolyte' in text:
+                # Текст вида: "<localized hint=\"Caldari Navy Hornet\">Caldari Navy Hornet*</localized> <color=#FF8DC169>Бездействует</color>"
+                
+                # Извлечь имя из hint
+                hint_match = re.search(r'hint="([^"]+)"', text)
+                if hint_match:
+                    name = hint_match.group(1)
+                else:
+                    # Извлечь из localized тега
+                    localized_match = re.search(r'<localized[^>]*>([^<]+)</localized>', text)
+                    if localized_match:
+                        name = localized_match.group(1).replace('*', '').strip()
+                
+                # Извлечь состояние из color тега
+                color_match = re.search(r'<color=[^>]+>([^<]+)</color>', text)
+                if color_match:
+                    state_text = color_match.group(1)
+                    
+                    # Маппинг русских состояний на английские
+                    if 'Бездействует' in state_text or 'Idle' in state_text:
+                        state = "Idle"
+                    elif 'Сражается' in state_text or 'Fighting' in state_text:
+                        state = "Fighting"
+                    elif 'Возвращается' in state_text or 'Returning' in state_text:
+                        state = "Returning"
+                
+                break
+        
+        # Альтернативный способ: найти Sprite с _hint (состояние)
+        if not name:
+            sprites = self._find_nodes_by_type(entry_node, 'Sprite')
+            for sprite in sprites:
+                sprite_dict = sprite.get('dictEntriesOfInterest', {})
+                sprite_name = sprite_dict.get('_name', '')
+                
+                if sprite_name == 'stateSprite':
+                    hint = sprite_dict.get('_hint', '')
+                    
+                    if 'Бездействует' in hint or 'Idle' in hint:
+                        state = "Idle"
+                    elif 'Сражается' in hint or 'Fighting' in hint:
+                        state = "Fighting"
+                    elif 'Возвращается' in hint or 'Returning' in hint:
+                        state = "Returning"
+        
+        if not name:
+            return None
+        
+        # Парсим здоровье дрона
+        shield, armor, hull = self._parse_drone_health(entry_node)
+        
+        return Drone(
+            name=name,
+            state=state,
+            shield=shield,
+            armor=armor,
+            hull=hull,
+            center=entry_center,
+            bounds=entry_bounds
+        )
+    
+    def _parse_drone_health(self, entry_node: dict) -> Tuple[float, float, float]:
+        """
+        Извлечь здоровье дрона из gauge'ей.
+        
+        Args:
+            entry_node: Узел DroneInSpaceEntry или DroneInBayEntry
+            
+        Returns:
+            Кортеж (shield, armor, hull) в диапазоне 0.0-1.0
+        """
+        shield = 1.0
+        armor = 1.0
+        hull = 1.0
+        
+        # Найти HealthGauge узлы
+        health_gauges = self._find_nodes_by_type(entry_node, 'HealthGauge')
+        
+        for gauge in health_gauges:
+            gauge_dict = gauge.get('dictEntriesOfInterest', {})
+            gauge_name = gauge_dict.get('_name', '')
+            
+            if gauge_name not in ['shieldGauge', 'armorGauge', 'structGauge']:
+                continue
+            
+            # Найти Fill с именем droneGaugeBar (это полоска здоровья)
+            fills = self._find_nodes_by_type(gauge, 'Fill')
+            
+            for fill in fills:
+                fill_dict = fill.get('dictEntriesOfInterest', {})
+                fill_name = fill_dict.get('_name', '')
+                
+                if fill_name != 'droneGaugeBar':
+                    continue
+                
+                # Получить ширину полоски
+                width = fill_dict.get('_displayWidth', 32)
+                if isinstance(width, dict) and 'int_low32' in width:
+                    width = width['int_low32']
+                
+                try:
+                    width = int(width)
+                    # Максимальная ширина 32px для дронов
+                    percent = min(width / 32.0, 1.0)
+                    
+                    if gauge_name == 'shieldGauge':
+                        shield = percent
+                    elif gauge_name == 'armorGauge':
+                        armor = percent
+                    elif gauge_name == 'structGauge':
+                        hull = percent
+                except (ValueError, TypeError):
+                    pass
+        
+        return (shield, armor, hull)

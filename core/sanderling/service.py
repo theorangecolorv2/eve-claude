@@ -35,6 +35,7 @@ class SanderlingService:
         self.eve_process_id = None
         self.is_running = False
         self.last_state = None
+        self.last_ui_tree = None  # Добавляем хранение последнего UI tree
         self.error_count = 0
         self.error_timestamps = []
         
@@ -129,6 +130,16 @@ class SanderlingService:
         """
         with self._state_lock:
             return self.last_state
+    
+    def get_ui_tree(self) -> Optional[dict]:
+        """
+        Получить последний сырой UI tree (thread-safe).
+        
+        Returns:
+            UI tree dict или None если данные недоступны
+        """
+        with self._state_lock:
+            return self.last_ui_tree
     
     # Properties для удобного доступа к данным
     @property
@@ -390,6 +401,7 @@ class SanderlingService:
                     # Thread-safe обновление состояния
                     with self._state_lock:
                         self.last_state = state
+                        self.last_ui_tree = ui_tree  # Сохраняем сырой UI tree
                     
                     self.error_count = 0
                     self._read_count += 1

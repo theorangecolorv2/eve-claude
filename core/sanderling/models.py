@@ -126,6 +126,36 @@ class ContextMenu:
 
 
 @dataclass
+class Drone:
+    """Дрон в космосе или в отсеке."""
+    name: str  # Название дрона (например, "Caldari Navy Hornet")
+    state: str  # Состояние: "Idle" (Бездействует), "Fighting" (Сражается), "Returning" (Возвращается)
+    
+    # Здоровье дрона (0.0-1.0)
+    shield: float = 1.0
+    armor: float = 1.0
+    hull: float = 1.0
+    
+    # Координаты записи в окне дронов
+    center: Optional[Tuple[int, int]] = None
+    bounds: Optional[Tuple[int, int, int, int]] = None
+
+
+@dataclass
+class DronesState:
+    """Состояние дронов."""
+    drones_in_space: List[Drone] = field(default_factory=list)  # Дроны в космосе
+    drones_in_bay: List[Drone] = field(default_factory=list)  # Дроны в отсеке
+    
+    # Количество дронов
+    in_space_count: int = 0  # Сколько дронов в космосе
+    max_drones: int = 5  # Максимум дронов
+    
+    # Окно дронов открыто?
+    window_open: bool = False
+
+
+@dataclass
 class GameState:
     """Состояние игры из UI tree."""
     targets: List[Target] = field(default_factory=list)
@@ -136,6 +166,7 @@ class GameState:
     neocom_buttons: List[NeocomButton] = field(default_factory=list)
     inventory: Optional[InventoryWindow] = None
     context_menu: Optional[ContextMenu] = None
+    drones: Optional[DronesState] = None
     timestamp: float = 0.0
     is_valid: bool = True
     warnings: List[str] = field(default_factory=list)

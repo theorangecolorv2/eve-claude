@@ -51,7 +51,7 @@ def switch_to_pvp_tab(sanderling: SanderlingService, tab_name: str = "PvP Foe") 
     
     # Кликаем по вкладке
     logger.info(f"Кликаю по вкладке '{target_tab.label}' в {target_tab.center}")
-    click(target_tab.center[0], target_tab.center[1])
+    click(target_tab.center[0], target_tab.center[1], duration=0.18)
     random_delay(0.5, 0.6)  # Короткая пауза после переключения
     
     return True
@@ -110,7 +110,7 @@ def lock_enemies_batch(sanderling: SanderlingService, max_locks: int = 5) -> int
             continue
         
         logger.debug(f"  Ctrl+Click по врагу #{i+1}: {enemy.name} в {enemy.center}")
-        click(enemy.center[0], enemy.center[1])
+        click(enemy.center[0], enemy.center[1], duration=0.12)  # Быстрый клик для лока
         random_delay(0.3, 0.4)  # Пауза между локами
     
     # Отпускаем Ctrl
@@ -275,7 +275,7 @@ def clear_enemies(
             break
         
         # Пауза после лока (цели должны залочиться)
-        random_delay(2.0, 2.1)  # Ждём чтобы лок применился
+        random_delay(2.5, 3.0)  # Было 2.0-2.1, +0.5 для надежности
         
         # Убиваем залоченных
         killed = kill_locked_batch(sanderling, guns_key, drones_key)

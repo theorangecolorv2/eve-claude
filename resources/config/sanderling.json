@@ -6,5 +6,5 @@
   "max_retries": 3,
   "timeout_ms": 5000,
   "binary_path": "external/sanderling-bin/read-memory-64-bit.exe",
-  "debug_mode": true
+  "debug_mode": false
 }
