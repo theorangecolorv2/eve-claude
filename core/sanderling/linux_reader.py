@@ -136,9 +136,9 @@ class LinuxMemoryReader:
 
         Алгоритм:
         1. Получить readable регионы из /proc/pid/maps
-        2. Сканировать на PyTypeObject где ob_type->ob_type == ob_type (метакласс)
-        3. Для найденных type-объектов прочитать tp_name, найти "UIRoot"
-        4. Сканировать на экземпляры с ob_type → UIRoot type
+        2. Найти ВСЕ типы с именем "UIRoot" (может быть несколько после reload)
+        3. Для каждого типа найти экземпляры
+        4. Валидировать экземпляры (ob_refcnt + __dict__ проверка)
         5. Вернуть адрес с максимальным количеством нод
 
         Returns:
@@ -155,39 +155,49 @@ class LinuxMemoryReader:
         regions = get_memory_regions(self.pid)
         readable_regions = [r for r in regions if r.is_readable and r.size > 0]
         total_size = sum(r.size for r in readable_regions)
-        logger.info(f"Найдено {len(readable_regions)} readable регионов, всего {total_size / 1024 / 1024:.0f} MB")
+        logger.info(f"Найдено {len(readable_regions)} readable регионов, "
+                     f"всего {total_size / 1024 / 1024:.0f} MB")
 
-        # Шаг 2-3: найти PyTypeObject с именем "UIRoot"
-        uiroot_type_addr = self._find_uiroot_type(readable_regions)
-        if not uiroot_type_addr:
+        # Шаг 2: найти ВСЕ типы с именем "UIRoot"
+        uiroot_types = self._find_all_uiroot_types(readable_regions)
+        if not uiroot_types:
             logger.error("Тип UIRoot не найден в памяти")
             return None
 
-        logger.info(f"Найден тип UIRoot: 0x{uiroot_type_addr:X}")
+        logger.info(f"Найдено {len(uiroot_types)} типов UIRoot: "
+                     f"{', '.join(f'0x{a:X}' for a in uiroot_types)}")
 
-        # Шаг 4: найти экземпляры UIRoot
-        instances = self._find_instances_of_type(readable_regions, uiroot_type_addr)
-        if not instances:
-            logger.error("Экземпляры UIRoot не найдены")
-            return None
-
-        logger.info(f"Найдено {len(instances)} кандидатов UIRoot")
-
-        # Шаг 5: для каждого кандидата посчитать количество нод
+        # Шаг 3-4: для каждого типа найти и валидировать экземпляры
         best_addr = None
         best_count = 0
 
-        for addr in instances:
-            self._visited.clear()
-            count = self._count_tree_nodes(addr, depth=0)
-            logger.debug(f"  0x{addr:X}: {count} нод")
+        for type_addr in uiroot_types:
+            # Прочитать tp_dictoffset для этого типа
+            dict_offset = self._get_dict_offset_for_type(type_addr)
+            logger.info(f"Тип 0x{type_addr:X}: tp_dictoffset = {dict_offset}")
 
-            if count > best_count:
-                best_count = count
-                best_addr = addr
+            instances = self._find_instances_of_type(readable_regions, type_addr)
+            logger.info(f"  Найдено {len(instances)} кандидатов")
 
-        if best_addr is None:
-            logger.error("Не удалось найти валидный UIRoot")
+            # Валидация и подсчёт нод
+            valid_count = 0
+            for addr in instances:
+                if not self._validate_instance(addr, dict_offset):
+                    continue
+
+                valid_count += 1
+                self._visited.clear()
+                count = self._count_tree_nodes(addr, depth=0)
+                logger.debug(f"  ✓ 0x{addr:X}: {count} нод (валидный)")
+
+                if count > best_count:
+                    best_count = count
+                    best_addr = addr
+
+            logger.info(f"  Из них валидных: {valid_count}")
+
+        if best_addr is None or best_count <= 1:
+            logger.error(f"Не удалось найти валидный UIRoot (лучший: {best_count} нод)")
             return None
 
         elapsed = time.time() - start_time
@@ -195,6 +205,51 @@ class LinuxMemoryReader:
         logger.info(f"Найден UIRoot: {root_hex} ({best_count} нод) за {elapsed:.1f}s")
 
         return root_hex
+
+    def _validate_instance(self, addr: int, dict_offset: Optional[int]) -> bool:
+        """
+        Проверить что адрес действительно является экземпляром Python-объекта.
+
+        Фильтрует false positives — ссылки на тип внутри MRO, tp_subclasses и т.д.
+
+        Args:
+            addr: Адрес кандидата
+            dict_offset: Ожидаемый offset __dict__ (из tp_dictoffset)
+
+        Returns:
+            True если это валидный экземпляр
+        """
+        # Проверка 1: ob_refcnt должен быть разумным (>0, <10M)
+        refcnt = self._process.read_int64(addr)
+        if refcnt is None or refcnt <= 0 or refcnt > 10_000_000:
+            return False
+
+        # Проверка 2: если знаем dict_offset, проверить что там dict
+        if dict_offset and dict_offset > 0:
+            dict_ptr = self._process.read_uint64(addr + dict_offset)
+            if dict_ptr is None or dict_ptr == 0:
+                return False
+            dict_type = self._cpython.read_type_name(dict_ptr)
+            if dict_type != 'dict':
+                return False
+
+        return True
+
+    def _get_dict_offset_for_type(self, type_addr: int) -> Optional[int]:
+        """
+        Прочитать tp_dictoffset из PyTypeObject.
+
+        Args:
+            type_addr: Адрес PyTypeObject
+
+        Returns:
+            Значение tp_dictoffset или None
+        """
+        for candidate in TP_DICTOFFSET_CANDIDATES:
+            val = self._process.read_int64(type_addr + candidate)
+            if val is not None and 0x10 <= val <= 0x200:
+                return val
+        return None
 
     def read_ui_tree(self, root_address: str) -> Optional[dict]:
         """
@@ -236,26 +291,25 @@ class LinuxMemoryReader:
 
         return tree
 
-    def _find_uiroot_type(self, regions: List[MemoryRegion]) -> Optional[int]:
+    def _find_all_uiroot_types(self, regions: List[MemoryRegion]) -> List[int]:
         """
-        Найти PyTypeObject с именем "UIRoot".
+        Найти ВСЕ PyTypeObject с именем "UIRoot".
 
-        Сканирует память на 8-byte aligned адреса где:
-        - ob_type->ob_type == ob_type (это type-объект, его мета-тип указывает на себя)
-        - tp_name → "UIRoot"
+        EVE может иметь несколько типов UIRoot (reload модулей, Stackless).
+        Возвращаем все, потом проверяем экземпляры каждого.
 
         Args:
             regions: Список readable регионов
 
         Returns:
-            Адрес PyTypeObject или None
+            Список адресов PyTypeObject
         """
+        result = []
+
         for region in regions:
-            # Пропускаем маленькие регионы и регионы с известными файлами
             if region.size < 4096:
                 continue
 
-            # Сканируем чанками
             offset = 0
             while offset < region.size:
                 chunk_size = min(self.scan_chunk_size, region.size - offset)
@@ -266,33 +320,29 @@ class LinuxMemoryReader:
                     offset += chunk_size
                     continue
 
-                # Сканируем по 8-byte aligned
                 for i in range(0, len(data) - 32, 8):
-                    # Читаем потенциальный ob_type
                     potential_type = struct.unpack_from('<Q', data, i + OB_TYPE)[0]
 
-                    # Быстрая проверка: ob_type должен быть валидным указателем
                     if potential_type < 0x1000 or potential_type > 0x7FFFFFFFFFFF:
                         continue
 
                     addr = chunk_addr + i
 
-                    # Проверяем что это type-объект (метакласс)
                     if not self._cpython.is_type_metaclass(addr):
                         continue
 
-                    # Читаем tp_name
                     name_ptr = self._process.read_uint64(addr + TP_NAME)
                     if name_ptr is None or name_ptr == 0:
                         continue
 
                     name = self._process.read_cstring(name_ptr, 32)
                     if name == "UIRoot":
-                        return addr
+                        logger.debug(f"Найден тип UIRoot @ 0x{addr:X}")
+                        result.append(addr)
 
                 offset += chunk_size
 
-        return None
+        return result
 
     def _find_instances_of_type(self, regions: List[MemoryRegion], type_addr: int) -> List[int]:
         """

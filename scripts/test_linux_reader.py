@@ -310,45 +310,52 @@ def stage5_find_uiroot(pid, process, cpython):
     regions = get_memory_regions(pid)
     readable = [r for r in regions if r.is_readable and r.size > 0]
 
-    logger.info("Поиск PyTypeObject с именем 'UIRoot'...")
+    logger.info("Поиск ВСЕХ PyTypeObject с именем 'UIRoot'...")
     start_time = time.time()
 
-    uiroot_type = reader._find_uiroot_type(readable)
+    uiroot_types = reader._find_all_uiroot_types(readable)
 
     elapsed = time.time() - start_time
 
-    if uiroot_type:
-        logger.info(f"✓ Тип UIRoot найден: 0x{uiroot_type:X} (за {elapsed:.1f}s)")
+    if uiroot_types:
+        logger.info(f"✓ Найдено {len(uiroot_types)} типов UIRoot (за {elapsed:.1f}s)")
 
-        # Дополнительная диагностика типа
-        tp_name_ptr = process.read_uint64(uiroot_type + 0x18)
-        if tp_name_ptr:
-            name = process.read_cstring(tp_name_ptr, 64)
-            logger.info(f"  tp_name = '{name}'")
+        for i, type_addr in enumerate(uiroot_types):
+            logger.info(f"")
+            logger.info(f"  --- UIRoot тип #{i+1}: 0x{type_addr:X} ---")
 
-        tp_basicsize = process.read_int64(uiroot_type + 0x20)
-        logger.info(f"  tp_basicsize = {tp_basicsize}")
+            tp_name_ptr = process.read_uint64(type_addr + 0x18)
+            if tp_name_ptr:
+                name = process.read_cstring(tp_name_ptr, 64)
+                logger.info(f"  tp_name = '{name}'")
 
-        # Попробовать прочитать tp_dictoffset из разных позиций
-        logger.info("")
-        logger.info("  Проба tp_dictoffset из разных позиций в PyTypeObject:")
-        from core.sanderling.linux_reader import TP_DICTOFFSET_CANDIDATES
-        for offset in TP_DICTOFFSET_CANDIDATES:
-            val = process.read_int64(uiroot_type + offset)
-            if val is not None:
-                marker = " ← правдоподобно" if 0x10 <= val <= 0x100 else ""
-                logger.info(f"    offset 0x{offset:X} → {val} (0x{val:X}){marker}")
+            tp_basicsize = process.read_int64(type_addr + 0x20)
+            logger.info(f"  tp_basicsize = {tp_basicsize}")
+
+            # tp_dictoffset
+            from core.sanderling.linux_reader import TP_DICTOFFSET_CANDIDATES
+            dict_offset = None
+            for offset in TP_DICTOFFSET_CANDIDATES:
+                val = process.read_int64(type_addr + offset)
+                if val is not None and 0x10 <= val <= 0x200:
+                    dict_offset = val
+                    logger.info(f"  tp_dictoffset (@ 0x{offset:X}) = {val} (0x{val:X})")
+                    break
+
+            if dict_offset is None:
+                logger.warning("  tp_dictoffset не найден")
     else:
-        logger.error(f"✗ Тип UIRoot не найден (искали {elapsed:.1f}s)")
+        logger.error(f"✗ Типы UIRoot не найдены (искали {elapsed:.1f}s)")
         logger.info("  Подсказки:")
         logger.info("  - EVE полностью загружена? (дождитесь экрана выбора персонажа)")
         logger.info("  - Попробуйте запустить повторно")
+        return [], reader
 
-    return uiroot_type, reader
+    return uiroot_types, reader
 
 
-def stage6_find_instances(pid, process, cpython, uiroot_type, reader):
-    """Этап 6: поиск экземпляров UIRoot."""
+def stage6_find_instances(pid, process, cpython, uiroot_types, reader):
+    """Этап 6: поиск валидных экземпляров UIRoot."""
     logger.info("")
     logger.info("=" * 60)
     logger.info("ЭТАП 6: Поиск экземпляров UIRoot")
@@ -358,53 +365,102 @@ def stage6_find_instances(pid, process, cpython, uiroot_type, reader):
     regions = get_memory_regions(pid)
     readable = [r for r in regions if r.is_readable and r.size > 0]
 
-    logger.info(f"Поиск объектов с ob_type = 0x{uiroot_type:X}...")
-    start_time = time.time()
-
-    instances = reader._find_instances_of_type(readable, uiroot_type)
-
-    elapsed = time.time() - start_time
-    logger.info(f"Найдено {len(instances)} экземпляров (за {elapsed:.1f}s)")
-
-    if not instances:
-        logger.error("✗ Экземпляры UIRoot не найдены!")
-        return None
-
-    # Для каждого — посчитать ноды
-    logger.info("")
-    logger.info("Подсчёт нод для каждого кандидата:")
     best_addr = None
     best_count = 0
 
-    for addr in instances:
-        reader._visited.clear()
-        count = reader._count_tree_nodes(addr, depth=0)
-        status = "★" if count > best_count else " "
-        logger.info(f"  {status} 0x{addr:X}: {count} нод")
+    for type_addr in uiroot_types:
+        dict_offset = reader._get_dict_offset_for_type(type_addr)
+        logger.info(f"Тип 0x{type_addr:X}: tp_dictoffset = {dict_offset}")
 
-        if count > best_count:
-            best_count = count
-            best_addr = addr
+        logger.info(f"  Поиск объектов с ob_type = 0x{type_addr:X}...")
+        start_time = time.time()
 
-    if best_addr:
+        instances = reader._find_instances_of_type(readable, type_addr)
+        elapsed = time.time() - start_time
+        logger.info(f"  Найдено {len(instances)} кандидатов (за {elapsed:.1f}s)")
+
+        # Валидация
+        valid = 0
+        invalid_reasons = {"bad_refcnt": 0, "no_dict": 0}
+
+        for addr in instances:
+            # Проверка refcnt
+            refcnt = process.read_int64(addr)
+            if refcnt is None or refcnt <= 0 or refcnt > 10_000_000:
+                invalid_reasons["bad_refcnt"] += 1
+                continue
+
+            # Проверка __dict__
+            has_dict = False
+            if dict_offset and dict_offset > 0:
+                dict_ptr = process.read_uint64(addr + dict_offset)
+                if dict_ptr:
+                    dict_type = cpython.read_type_name(dict_ptr)
+                    if dict_type == 'dict':
+                        has_dict = True
+
+            if not has_dict:
+                # Brute-force dict поиск
+                for off in (0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0x40, 0x48):
+                    ptr = process.read_uint64(addr + off)
+                    if ptr and cpython.read_type_name(ptr) == 'dict':
+                        has_dict = True
+                        logger.debug(f"    0x{addr:X}: dict найден brute-force @ 0x{off:X}")
+                        break
+
+            if not has_dict:
+                invalid_reasons["no_dict"] += 1
+                continue
+
+            valid += 1
+
+            # Посчитать ноды
+            reader._visited.clear()
+            count = reader._count_tree_nodes(addr, depth=0)
+            logger.info(f"  ✓ 0x{addr:X}: refcnt={refcnt}, {count} нод")
+
+            if count > best_count:
+                best_count = count
+                best_addr = addr
+
+        logger.info(f"  Валидных: {valid}, отброшено: "
+                     f"bad_refcnt={invalid_reasons['bad_refcnt']}, "
+                     f"no_dict={invalid_reasons['no_dict']}")
+
+    if best_addr and best_count > 1:
         logger.info(f"")
         logger.info(f"✓ Лучший UIRoot: 0x{best_addr:X} ({best_count} нод)")
 
-        # Попробовать прочитать __dict__ для доп. диагностики
+        # Показать содержимое __dict__
         dict_addr = reader._find_instance_dict(best_addr)
         if dict_addr:
-            logger.info(f"  __dict__ найден: 0x{dict_addr:X}")
             raw_dict = cpython.read_dict(dict_addr)
             if raw_dict:
-                logger.info(f"  Ключи __dict__ ({len(raw_dict)}): {list(raw_dict.keys())[:20]}")
-        else:
-            logger.warning("  __dict__ НЕ найден! Это критическая проблема.")
-            logger.info("  Brute-force проверка offsets:")
-            for offset in range(0x10, 0x80, 0x08):
-                ptr = process.read_uint64(best_addr + offset)
-                if ptr and 0x1000 < ptr < 0x7FFFFFFFFFFF:
-                    type_name = cpython.read_type_name(ptr)
-                    logger.info(f"    offset 0x{offset:X} → 0x{ptr:X} (type: {type_name})")
+                logger.info(f"  Ключи __dict__ ({len(raw_dict)}):")
+                for key in sorted(raw_dict.keys()):
+                    logger.info(f"    '{key}'")
+    else:
+        logger.error(f"✗ Валидные экземпляры UIRoot не найдены!")
+        logger.info("")
+        logger.info("  Детальная диагностика первых 5 кандидатов:")
+
+        # Показать что на самом деле лежит по offsets у первого кандидата
+        for type_addr in uiroot_types:
+            instances = reader._find_instances_of_type(readable, type_addr)
+            for addr in instances[:5]:
+                logger.info(f"")
+                logger.info(f"  Кандидат 0x{addr:X} (type 0x{type_addr:X}):")
+                refcnt = process.read_int64(addr)
+                logger.info(f"    ob_refcnt = {refcnt}")
+                for off in range(0x00, 0x58, 0x08):
+                    ptr = process.read_uint64(addr + off)
+                    if ptr:
+                        tname = cpython.read_type_name(ptr) if 0x1000 < ptr < 0x7FFFFFFFFFFF else None
+                        hex_ptr = f"0x{ptr:X}"
+                        type_info = f" (type: {tname})" if tname else ""
+                        logger.info(f"    offset 0x{off:02X} → {hex_ptr}{type_info}")
+
+        return None
 
     return best_addr
 
@@ -558,13 +614,13 @@ def main():
     type_objects, cpython = stage4_find_type_objects(pid, process)
 
     # Этап 5
-    uiroot_type, reader = stage5_find_uiroot(pid, process, cpython)
-    if not uiroot_type:
+    uiroot_types, reader = stage5_find_uiroot(pid, process, cpython)
+    if not uiroot_types:
         process.close()
         sys.exit(1)
 
     # Этап 6
-    root_addr = stage6_find_instances(pid, process, cpython, uiroot_type, reader)
+    root_addr = stage6_find_instances(pid, process, cpython, uiroot_types, reader)
     if not root_addr:
         process.close()
         sys.exit(1)
