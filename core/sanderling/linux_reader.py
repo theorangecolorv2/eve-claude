@@ -295,8 +295,10 @@ class LinuxMemoryReader:
         """
         Найти ВСЕ PyTypeObject с именем "UIRoot".
 
-        EVE может иметь несколько типов UIRoot (reload модулей, Stackless).
-        Возвращаем все, потом проверяем экземпляры каждого.
+        Быстрый алгоритм (вместо перебора каждого 8-byte aligned адреса):
+        1. Найти все вхождения C-строки "UIRoot\\0" в памяти (bytes.find — O(n))
+        2. Для каждого адреса строки — искать указатель на неё (tp_name)
+        3. Верифицировать что найденный объект — PyTypeObject (метакласс)
 
         Args:
             regions: Список readable регионов
@@ -304,12 +306,17 @@ class LinuxMemoryReader:
         Returns:
             Список адресов PyTypeObject
         """
-        result = []
+        # Шаг 1: найти все вхождения строки "UIRoot\0" в памяти
+        target = b"UIRoot\x00"
+        string_addrs = []
 
-        for region in regions:
-            if region.size < 4096:
-                continue
+        # Сканируем только anonymous/heap регионы (пропускаем .so файлы)
+        scan_regions = [r for r in regions if self._is_heap_region(r)]
+        total_scan = sum(r.size for r in scan_regions)
+        logger.info(f"Шаг 1: поиск строки 'UIRoot' в {len(scan_regions)} регионах "
+                     f"({total_scan / 1024 / 1024:.0f} MB)")
 
+        for region in scan_regions:
             offset = 0
             while offset < region.size:
                 chunk_size = min(self.scan_chunk_size, region.size - offset)
@@ -320,33 +327,108 @@ class LinuxMemoryReader:
                     offset += chunk_size
                     continue
 
-                for i in range(0, len(data) - 32, 8):
-                    potential_type = struct.unpack_from('<Q', data, i + OB_TYPE)[0]
-
-                    if potential_type < 0x1000 or potential_type > 0x7FFFFFFFFFFF:
-                        continue
-
-                    addr = chunk_addr + i
-
-                    if not self._cpython.is_type_metaclass(addr):
-                        continue
-
-                    name_ptr = self._process.read_uint64(addr + TP_NAME)
-                    if name_ptr is None or name_ptr == 0:
-                        continue
-
-                    name = self._process.read_cstring(name_ptr, 32)
-                    if name == "UIRoot":
-                        logger.debug(f"Найден тип UIRoot @ 0x{addr:X}")
-                        result.append(addr)
+                # bytes.find — C-оптимизирован, очень быстро
+                search_start = 0
+                while True:
+                    pos = data.find(target, search_start)
+                    if pos == -1:
+                        break
+                    string_addrs.append(chunk_addr + pos)
+                    search_start = pos + 1
 
                 offset += chunk_size
 
+        logger.info(f"  Найдено {len(string_addrs)} вхождений строки 'UIRoot'")
+
+        if not string_addrs:
+            return []
+
+        # Шаг 2: для каждого адреса строки — искать PyTypeObject с tp_name → этот адрес
+        # tp_name (0x18) содержит указатель на C-строку
+        result = []
+
+        for str_addr in string_addrs:
+            # Упаковать адрес строки для поиска в памяти
+            str_addr_bytes = struct.pack('<Q', str_addr)
+
+            for region in scan_regions:
+                offset = 0
+                while offset < region.size:
+                    chunk_size = min(self.scan_chunk_size, region.size - offset)
+                    chunk_addr = region.start + offset
+
+                    data = self._process.read_bytes(chunk_addr, chunk_size)
+                    if data is None:
+                        offset += chunk_size
+                        continue
+
+                    search_start = 0
+                    while True:
+                        pos = data.find(str_addr_bytes, search_start)
+                        if pos == -1:
+                            break
+
+                        # Этот указатель должен быть на позиции tp_name (0x18)
+                        # Значит PyTypeObject начинается на 0x18 раньше
+                        if pos >= TP_NAME:
+                            type_addr = chunk_addr + pos - TP_NAME
+
+                            # Верификация: это реально type-объект?
+                            if (type_addr % 8 == 0 and
+                                    type_addr not in [r for r, _ in result] and
+                                    self._cpython.is_type_metaclass(type_addr)):
+                                # Дополнительная проверка: tp_name действительно указывает на строку
+                                verify_ptr = self._process.read_uint64(type_addr + TP_NAME)
+                                if verify_ptr == str_addr:
+                                    logger.debug(f"Найден тип UIRoot @ 0x{type_addr:X} "
+                                                 f"(tp_name → 0x{str_addr:X})")
+                                    result.append(type_addr)
+
+                        search_start = pos + 1
+
+                    offset += chunk_size
+
+            # Если уже нашли хотя бы один тип — можно не искать по остальным строкам
+            # (но продолжаем для надёжности)
+
+        # Дедупликация
+        result = list(set(result))
+        logger.info(f"Шаг 2: найдено {len(result)} типов UIRoot")
         return result
+
+    @staticmethod
+    def _is_heap_region(region: MemoryRegion) -> bool:
+        """
+        Проверить что регион содержит heap/anonymous данные (не библиотечный код).
+
+        Python объекты живут только в heap и anonymous mmap регионах.
+        Пропускаем .so/.dll файлы, vdso, vvar и т.д.
+        """
+        # Должен быть readable
+        if not region.is_readable:
+            return False
+
+        # Пропускаем файловые маппинги (.so, .dll, и т.д.)
+        path = region.pathname.strip()
+        if path and not path.startswith('['):
+            # Файловый маппинг — пропускаем
+            return False
+
+        # Пропускаем специальные регионы ядра
+        if path in ('[vdso]', '[vvar]', '[vsyscall]'):
+            return False
+
+        # Слишком маленькие регионы
+        if region.size < 4096:
+            return False
+
+        return True
 
     def _find_instances_of_type(self, regions: List[MemoryRegion], type_addr: int) -> List[int]:
         """
         Найти все экземпляры с указанным ob_type.
+
+        Сканирует только heap/anonymous регионы (Python объекты не в .so файлах).
 
         Args:
             regions: Список readable регионов
@@ -357,11 +439,9 @@ class LinuxMemoryReader:
         """
         instances = []
         type_bytes = struct.pack('<Q', type_addr)
+        scan_regions = [r for r in regions if self._is_heap_region(r)]
 
-        for region in regions:
-            if region.size < 16:
-                continue
-
+        for region in scan_regions:
             offset = 0
             while offset < region.size:
                 chunk_size = min(self.scan_chunk_size, region.size - offset)
@@ -372,14 +452,14 @@ class LinuxMemoryReader:
                     offset += chunk_size
                     continue
 
-                # Ищем type_addr в позиции OB_TYPE (offset 0x08)
+                # bytes.find для поиска type_addr — быстро
                 search_start = 0
                 while True:
                     pos = data.find(type_bytes, search_start)
                     if pos == -1:
                         break
 
-                    # ob_type находится по offset 0x08, значит объект начинается на 8 байт раньше
+                    # ob_type находится по offset 0x08
                     if pos >= OB_TYPE and (pos - OB_TYPE) % 8 == 0:
                         obj_addr = chunk_addr + pos - OB_TYPE
                         instances.append(obj_addr)
