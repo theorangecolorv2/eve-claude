@@ -113,6 +113,10 @@ class LinuxProcessAccess:
         if size <= 0:
             return b''
 
+        # Защита от невалидных адресов (user-space x86_64: 0 .. 0x7FFFFFFFFFFF)
+        if addr < 0 or addr > 0x7FFFFFFFFFFF or addr + size > 0x7FFFFFFFFFFF:
+            return None
+
         if self._use_process_vm_readv:
             return self._read_via_process_vm_readv(addr, size)
 
@@ -124,7 +128,7 @@ class LinuxProcessAccess:
             if len(data) != size:
                 return None
             return data
-        except OSError:
+        except (OSError, OverflowError, ValueError):
             return None
 
     def _read_via_process_vm_readv(self, addr: int, size: int) -> Optional[bytes]:
@@ -214,12 +218,17 @@ class LinuxProcessAccess:
         Returns:
             str или None
         """
+        if addr <= 0 or addr > 0x7FFFFFFFFFFF:
+            return None
+
         data = self.read_bytes(addr, max_len)
         if data is None:
             return None
 
         # Найти null-terminator
         null_idx = data.find(b'\x00')
+        if null_idx == 0:
+            return ""
         if null_idx >= 0:
             data = data[:null_idx]
 

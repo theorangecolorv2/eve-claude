@@ -147,6 +147,9 @@ class CPythonReader:
 
         # Прочитать ob_type мета-типа
         meta_meta_type = self.process.read_uint64(meta_type + OB_TYPE)
+        if meta_meta_type is None:
+            self._metaclass_cache[type_addr] = False
+            return False
 
         # Для встроенного 'type': type->ob_type->ob_type == type->ob_type
         result = meta_type == meta_meta_type
