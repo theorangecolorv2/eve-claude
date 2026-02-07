@@ -1,5 +1,6 @@
 """Sanderling background service for EVE Online memory reading."""
 import subprocess
+import sys
 import json
 import time
 import psutil
@@ -188,85 +189,98 @@ class SanderlingService:
     def _find_eve_process(self) -> Optional[int]:
         """
         Найти процесс EVE Online.
-        
+
+        На Windows: ищем exefile.exe через psutil.
+        На Linux: ищем через /proc/*/cmdline (EVE через Proton).
+
         Returns:
             Process ID или None
         """
         max_attempts = 12  # 12 * 5 секунд = 1 минута
         attempt = 0
-        
+
         while attempt < max_attempts:
-            for proc in psutil.process_iter(['pid', 'name']):
-                try:
-                    if proc.info['name'].lower() == 'exefile.exe':
-                        return proc.info['pid']
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    continue
-            
+            # Linux: используем специализированный поиск через /proc
+            if sys.platform == 'linux':
+                from .linux_process import find_eve_process
+                pid = find_eve_process()
+                if pid:
+                    return pid
+            else:
+                # Windows: стандартный поиск через psutil
+                for proc in psutil.process_iter(['pid', 'name']):
+                    try:
+                        if proc.info['name'].lower() == 'exefile.exe':
+                            return proc.info['pid']
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        continue
+
             if attempt < max_attempts - 1:
                 logger.debug(f"EVE process not found, waiting... (attempt {attempt + 1}/{max_attempts})")
                 time.sleep(5.0)
-            
+
             attempt += 1
-        
+
         return None
         
     def _find_root_address(self) -> Optional[str]:
         """
         Найти root address через полный поиск.
-        
+
+        На Windows: запускает read-memory-64-bit.exe.
+        На Linux: использует LinuxMemoryReader напрямую.
+
         Returns:
             Root address или None
         """
+        # Linux: используем LinuxMemoryReader напрямую (без subprocess)
+        if sys.platform == 'linux':
+            return self._find_root_address_linux()
+
+        # Windows: запускаем C# exe
         if not Path(self.config.binary_path).exists():
             logger.error(f"Sanderling binary not found: {self.config.binary_path}")
             return None
-        
+
         try:
-            # Запустить без --root-address для полного поиска
             cmd = [
                 self.config.binary_path,
                 "read-memory-eve-online",
                 f"--pid={self.eve_process_id}",
                 "--remove-other-dict-entries"
             ]
-            
+
             logger.info("Searching for root address (may take up to 3 minutes)...")
             start_time = time.time()
-            
-            # Используем увеличенный timeout для первого поиска (3 минуты = 180 секунд)
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=180.0  # 3 минуты для первого поиска
+                timeout=180.0
             )
-            
+
             elapsed = time.time() - start_time
             logger.info(f"Search completed in {elapsed:.1f}s")
-            
+
             if result.returncode != 0:
                 logger.error(f"Sanderling failed with exit code {result.returncode}")
                 logger.error(f"STDERR: {result.stderr}")
                 return None
-            
-            # Sanderling выводит информацию в stdout и сохраняет JSON в файл
+
             output = result.stdout
             logger.debug(f"Sanderling output: {output}")
-            
-            # Ищем строку вида "0x276A59E2CF8: 1472 nodes."
+
             import re
             matches = re.findall(r'(0x[0-9A-Fa-f]+):\s+(\d+)\s+nodes', output)
-            
+
             if not matches:
                 logger.error("Could not find root address in output")
                 return None
-            
-            # Берем адрес с наибольшим количеством нод
+
             root_address = max(matches, key=lambda x: int(x[1]))[0]
             logger.info(f"Found root address: {root_address}")
-            
-            # Удалить временный JSON файл если он был создан
+
             try:
                 match = re.search(r"to file '([^']+)'", output)
                 if match:
@@ -275,48 +289,74 @@ class SanderlingService:
                         json_file.unlink()
             except Exception:
                 pass
-            
+
             return root_address
-                
+
         except subprocess.TimeoutExpired:
             logger.error("Root address search timed out (180s)")
             return None
         except Exception as e:
             logger.error(f"Error finding root address: {e}")
             return None
+
+    def _find_root_address_linux(self) -> Optional[str]:
+        """Найти root address на Linux через LinuxMemoryReader."""
+        from .linux_reader import LinuxMemoryReader
+        try:
+            reader = LinuxMemoryReader(
+                self.eve_process_id,
+                scan_chunk_size=self.config.linux_scan_chunk_size
+            )
+            if not reader.open():
+                logger.error("Не удалось открыть доступ к памяти процесса")
+                return None
+
+            try:
+                root = reader.find_root_address()
+                return root
+            finally:
+                reader.close()
+        except Exception as e:
+            logger.error(f"Ошибка поиска root address на Linux: {e}")
+            return None
         
     def _read_memory(self) -> Optional[dict]:
         """
         Прочитать память и вернуть UI tree.
-        
+
+        На Windows: subprocess → C# exe → JSON файл.
+        На Linux: LinuxMemoryReader напрямую → dict.
+
         Returns:
             UI tree dict или None
         """
+        # Linux: читаем память напрямую из Python (без subprocess!)
+        if sys.platform == 'linux':
+            return self._read_memory_linux()
+
+        # Windows: стандартный путь через C# exe
         if not Path(self.config.binary_path).exists():
             return None
-        
+
         try:
-            # Создать temp директорию
-            # Приоритет: RAMDisk (R:/temp) > обычный диск (temp/)
             if Path("R:/").exists():
                 temp_dir = Path("R:/temp")
             else:
                 temp_dir = Path("temp")
             temp_dir.mkdir(exist_ok=True)
-            
+
             cmd = [
                 str(Path(self.config.binary_path).absolute()),
                 "read-memory-eve-online",
                 f"--pid={self.eve_process_id}",
                 "--remove-other-dict-entries"
             ]
-            
+
             if self._root_address:
                 cmd.extend(["--root-address", self._root_address])
-            
+
             start_time = time.time()
-            
-            # Запускаем из temp директории - Sanderling сохранит файл туда
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -324,49 +364,43 @@ class SanderlingService:
                 cwd=str(temp_dir.absolute()),
                 timeout=self.config.timeout_ms / 1000.0
             )
-            
+
             elapsed_ms = (time.time() - start_time) * 1000
-            
+
             if result.returncode != 0:
                 logger.error(f"Sanderling read failed with exit code {result.returncode}")
                 return None
-            
-            # Sanderling сохраняет JSON в текущую директорию (temp/)
+
             output = result.stdout
-            
-            # Ищем строку вида "I saved memory reading ... to file 'path.json'"
+
             import re
             match = re.search(r"to file '([^']+)'", output)
-            
+
             if not match:
                 logger.error("Could not find output file path in Sanderling output")
                 logger.debug(f"Output: {output}")
                 return None
-            
-            # Путь будет относительно temp директории
+
             json_filename = Path(match.group(1)).name
             json_file = temp_dir / json_filename
-            
+
             if not json_file.exists():
                 logger.error(f"JSON file not found: {json_file}")
                 return None
-            
-            # Читаем JSON из файла
+
             with open(json_file, 'r', encoding='utf-8') as f:
                 ui_tree = json.load(f)
-            
-            # Удаляем временный файл
+
             try:
                 json_file.unlink()
             except Exception:
                 pass
-            
-            # Сохранить снимок в debug режиме
+
             if self.config.debug_mode:
                 self._save_debug_snapshot(ui_tree)
-            
+
             return ui_tree
-            
+
         except subprocess.TimeoutExpired:
             logger.error("Memory read timed out")
             return None
@@ -375,6 +409,31 @@ class SanderlingService:
             return None
         except Exception as e:
             logger.error(f"Error reading memory: {e}")
+            return None
+
+    def _read_memory_linux(self) -> Optional[dict]:
+        """Прочитать UI tree на Linux через LinuxMemoryReader."""
+        from .linux_reader import LinuxMemoryReader
+        try:
+            reader = LinuxMemoryReader(
+                self.eve_process_id,
+                scan_chunk_size=self.config.linux_scan_chunk_size
+            )
+            if not reader.open():
+                logger.error("Не удалось открыть доступ к памяти")
+                return None
+
+            try:
+                ui_tree = reader.read_ui_tree(self._root_address)
+
+                if self.config.debug_mode and ui_tree:
+                    self._save_debug_snapshot(ui_tree)
+
+                return ui_tree
+            finally:
+                reader.close()
+        except Exception as e:
+            logger.error(f"Ошибка чтения памяти на Linux: {e}")
             return None
         
     def _read_loop(self) -> None:

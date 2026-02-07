@@ -89,20 +89,15 @@ def main():
             return
         
         logger.info("Sanderling подключен")
-        
-        # Даем время переключить окно на EVE
-        print("\nПереключитесь на окно EVE Online...")
-        logger.info("Ожидание 3 секунды для переключения окна...")
-        time.sleep(3)
-        
-        # Выбор филамента
+
+        # Выбор филамента (до переключения окна)
         print("\nДоступные филаменты:")
         filaments = list(FILAMENT_NAMES.items())
         for i, (key, name) in enumerate(filaments, 1):
             print(f"{i}. {name}")
-        
+
         choice = input(f"\nВыберите филамент (1-{len(filaments)}), Enter для Calm Exotic: ")
-        
+
         filament_name = None
         if choice.strip():
             try:
@@ -111,7 +106,12 @@ def main():
                     filament_name = filaments[idx][1]
             except ValueError:
                 pass
-        
+
+        # Даем время переключить окно на EVE
+        print("\nПереключитесь на окно EVE Online...")
+        logger.info("Ожидание 3 секунды для переключения окна...")
+        time.sleep(3)
+
         # Создаем и запускаем бота
         logger.info("Запуск бота...")
         bot = AbyssFarmer(sanderling, filament_name)

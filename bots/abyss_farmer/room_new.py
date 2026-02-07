@@ -208,7 +208,7 @@ def _switch_to_tab(sanderling: SanderlingService, tab_name: str) -> bool:
     # Кликаем по вкладке
     logger.debug(f"Кликаю по вкладке '{tab_name}' @ {target_tab.center}")
     click(target_tab.center[0], target_tab.center[1], duration=0.18)  # Было 0.15, +20%
-    random_delay(0.5, 0.6)
+    random_delay(1.0, 1.1)
     
     return True
 

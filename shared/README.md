@@ -1,4 +1,8 @@
-# Shared Utilities
+# Shared Utilities (DEPRECATED)
+
+> **⚠️ DEPRECATED**: Эти модули использовались старым CV-ботом (anomaly_farmer).
+> Актуальный бот (abyss_farmer) использует `core/sanderling/` и `eve/` напрямую.
+> Не используйте shared/ для нового кода.
 
 Общие утилиты для всех ботов.
 

@@ -23,7 +23,10 @@
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
       "Bash(powershell \"Get-Process | Where-Object {$_ProcessName -like ''*eve*'' -or $_ProcessName -like ''*exefile*''} | Select-Object Id, ProcessName, MainWindowTitle\")",
-      "Bash(powershell -Command \"Get-Process exefile -ErrorAction SilentlyContinue | Select-Object Id, ProcessName\")"
+      "Bash(powershell -Command \"Get-Process exefile -ErrorAction SilentlyContinue | Select-Object Id, ProcessName\")",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:schlafwandler.github.io)"
     ]
   }
 }

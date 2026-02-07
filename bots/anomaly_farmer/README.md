@@ -1,4 +1,7 @@
-# Anomaly Farmer Bot
+# Anomaly Farmer Bot (DEPRECATED)
+
+> **⚠️ DEPRECATED**: Этот бот использует CV/template matching и больше не развивается.
+> Актуальный бот: `bots/abyss_farmer/` (использует Sanderling для чтения памяти).
 
 Автоматический бот для фарма аномалий (убежища/укрытия) в EVE Online.
 

@@ -1,9 +1,10 @@
 # eve/sanderling/__init__.py
 """
-Sanderling - модуль чтения памяти EVE Online.
+⚠️ DEPRECATED: Этот модуль не используется.
+Используйте core.sanderling вместо eve.sanderling.
 
-Позволяет получать данные о состоянии игры напрямую из памяти,
-без использования template matching.
+Пример:
+    from core.sanderling.service import SanderlingService
 """
 
 from .service import SanderlingService

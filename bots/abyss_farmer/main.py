@@ -171,8 +171,8 @@ class AbyssFarmer:
         click(warp_button.center[0], warp_button.center[1], duration=0.225)  # 0.18 * 1.25 = 0.225
         
         # Ждем завершения варпа
-        logger.info("Ожидание завершения варпа (30-32 сек)...")
-        random_delay(30.0, 32.0)
+        logger.info("Ожидание завершения варпа (25-28 сек)...")
+        random_delay(25.0, 28.0)
         
         logger.info(f"Варп на {spot_name} завершен")
         return True

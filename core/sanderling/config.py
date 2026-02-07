@@ -18,6 +18,9 @@ class SanderlingConfig:
     timeout_ms: int = 5000
     binary_path: str = "external/sanderling-bin/read-memory-64-bit.exe"
     debug_mode: bool = False
+    # Linux-специфичные настройки
+    linux_use_process_vm_readv: bool = False  # Метод чтения памяти (fallback)
+    linux_scan_chunk_size: int = 4_194_304  # Размер чанка для сканирования (4 MB)
     
     @classmethod
     def load(cls, config_file: str = "resources/config/sanderling.json") -> "SanderlingConfig":
